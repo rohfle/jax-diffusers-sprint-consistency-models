@@ -124,7 +124,6 @@ def main():
                     'test_loss': [],
                     'test_accuracy': []}
 
-    batch_count = train_sample_count // BATCH_SIZE
     for epoch in range(NUM_EPOCHS):
         # ds_train.set_epoch(epoch)  # randomize the batches
         pbar = tqdm(ds_train)

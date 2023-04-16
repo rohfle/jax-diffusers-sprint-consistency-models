@@ -3,8 +3,8 @@ import tensorflow as tf             # TensorFlow operations
 
 def get_datasets(num_epochs, batch_size):
   """Load MNIST train and test datasets into memory."""
-  train_ds = tfds.load('mnist', split='train')
-  test_ds = tfds.load('mnist', split='test')
+  train_ds = tfds.load('fashion_mnist', split='train')
+  test_ds = tfds.load('fashion_mnist', split='test')
 
   train_ds = train_ds.map(lambda sample: {'image': tf.cast(sample['image'],
                                                            tf.float32) / 255.,
