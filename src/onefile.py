@@ -1,10 +1,14 @@
-import torch
 from datasets import load_dataset
-from torch.utils.data import DataLoader
 import jax
 import jax.numpy as jnp
 import numpy as np
 from flax import linen as nn
+from tqdm import tqdm
+import time
+RUN_TIMESTAMP = int(time.time())
+
+np.set_printoptions(precision=2, linewidth=140)
+
 
 class CNN(nn.Module):
     """A simple CNN model."""
@@ -24,56 +28,41 @@ class CNN(nn.Module):
         return x
 
 
-BATCH_SIZE = 32
+BATCH_SIZE = 32 # TODO: change
 NUM_EPOCHS = 1 # TODO: change to 100 or something
-NUM_WORKERS = 1 # TODO: change to number of cpu cores
 IMAGE_DTYPE = jnp.bfloat16
-IMAGE_NUM_CHANNELS = 1
-IMAGE_SIZE = 32
 
-torch.set_num_threads(4)
-torch.set_printoptions(precision=4, linewidth=140, sci_mode=False)
-torch.manual_seed(1)
+SHUFFLE_SEED = 42
+SHUFFLE_BUFFER_SIZE = 10_000
 
-# convert from PIL image format, pad, -1 to 1 range
-def transform_dataset_images(batch):
-    for idx, orig in enumerate(batch['image']):
-        image = np.array(orig, dtype=float)
-        image = np.array(image / 255, dtype=IMAGE_DTYPE)
-        image = np.pad(image, 2) * 2 - 1
-        # this will standardize grayscale images as a WxHx1 array
-        batch['image'][idx] = image.reshape(32, 32, -1)
-    return batch
+dataset = load_dataset('fashion_mnist').shuffle(seed=SHUFFLE_SEED)
+train_sample_count = len(dataset['train'])
+valid_sample_count = len(dataset['test'])
+dataset['train'] = dataset['train'].flatten_indices()
+dataset['test'] = dataset['test'].flatten_indices()
+dataset = dataset.with_format('jax')
+# BUG: https://github.com/huggingface/datasets/issues/5756
+# cant use load_dataset(streaming=True) with shuffle
+#.shuffle(seed=SHUFFLE_SEED, buffer_size=SHUFFLE_BUFFER_SIZE)
 
+def transform_and_collate(batch):
+    images = np.stack(batch['image'])  # stack all the images into one giant array
+    # TODO: look at JIT / JAX optimization for image manipulation
+    images = images.reshape(*images.shape[:3], -1)  # to allow for grayscale 1 channel images
+    images = images / 255  # range 0.0 to 1.0
+    images = np.pad(images, [[0], [2], [2], [0]])  # add padding to width and height
+    images = np.array(images * 2 - 1)  # output range will be -1.0 to 1.0
+    labels = np.array(batch['label'])
 
-def collate_dataset(batch):
-    images = []
-    labels = []
-    for item in batch:
-        images += [item['image']]
-        labels += [item['label']]
     return {
-        'image': jnp.array(images),
-        'label': jnp.array(labels),
+        # by wrapping with a list here, its possible to keep the batch all together
+        'image': [images],
+        'label': [labels],
     }
 
-
-dataset = load_dataset('fashion_mnist').with_transform(transform_dataset_images)
-
-dl_train = DataLoader(
-    dataset['train'],
-    batch_size=BATCH_SIZE,
-    collate_fn=collate_dataset,
-    num_workers=NUM_WORKERS
-)
-
-dl_valid = DataLoader(
-    dataset['test'],
-    batch_size=BATCH_SIZE,
-    collate_fn=collate_dataset,
-    num_workers=NUM_WORKERS
-)
-
+ds_train = dataset['train'].map(transform_and_collate, batched=True, batch_size=BATCH_SIZE, drop_last_batch=True)
+ds_valid = dataset['test'].map(transform_and_collate, batched=True, batch_size=BATCH_SIZE, drop_last_batch=True)
+image_shape = np.array(next(iter(ds_train))['image']).shape[1:]
 
 from clu import metrics
 from flax.training import train_state  # Useful dataclass to keep train state
@@ -88,9 +77,9 @@ class Metrics(metrics.Collection):
 class TrainState(train_state.TrainState):
     metrics: Metrics
 
-def create_train_state(module, rng, learning_rate, momentum):
+def create_train_state(module, rng, learning_rate, momentum, image_shape):
     """Creates an initial `TrainState`."""
-    params = module.init(rng, jnp.ones([1, 32, 32, 1]))['params'] # initialize parameters by passing a template image
+    params = module.init(rng, jnp.ones([1, *image_shape]))['params'] # initialize parameters by passing a template image
     tx = optax.sgd(learning_rate, momentum)
     return TrainState.create(
         apply_fn=module.apply, params=params, tx=tx,
@@ -120,56 +109,66 @@ def compute_metrics(*, state, batch):
     state = state.replace(metrics=metrics)
     return state
 
+def main():
+    cnn = CNN()
+    print(cnn.tabulate(jax.random.PRNGKey(0), jnp.ones((1, *image_shape))))
+    learning_rate = 0.01
+    momentum = 0.9
+    init_rng = jax.random.PRNGKey(0)
+    state = create_train_state(cnn, init_rng, learning_rate, momentum, image_shape=image_shape)
+    del init_rng  # Must not be used anymore.
 
-cnn = CNN()
-print(cnn.tabulate(jax.random.PRNGKey(0), jnp.ones((1, 32, 32, 1))))
-learning_rate = 0.01
-momentum = 0.9
-init_rng = jax.random.PRNGKey(0)
-state = create_train_state(cnn, init_rng, learning_rate, momentum)
-del init_rng  # Must not be used anymore.
+
+    metrics_history = {'train_loss': [],
+                    'train_accuracy': [],
+                    'test_loss': [],
+                    'test_accuracy': []}
+
+    batch_count = train_sample_count // BATCH_SIZE
+    for epoch in range(NUM_EPOCHS):
+        # ds_train.set_epoch(epoch)  # randomize the batches
+        pbar = tqdm(ds_train)
+        for batch in tqdm(ds_train):
+            pbar.set_description('Training...')
+            state = train_step(state, batch) # get updated train state (which contains the updated parameters)
+            pbar.set_description('Computing metrics...')
+            state = compute_metrics(state=state, batch=batch) # aggregate batch metrics
 
 
-metrics_history = {'train_loss': [],
-                   'train_accuracy': [],
-                   'test_loss': [],
-                   'test_accuracy': []}
+        for metric, value in state.metrics.compute().items(): # compute metrics
+            metrics_history[f'train_{metric}'].append(value) # record metrics
+        state = state.replace(metrics=state.metrics.empty()) # reset train_metrics for next training epoch
 
-for epoch in range(NUM_EPOCHS):
-    for batch_idx, batch in enumerate(dl_train):
-        print("BATCH", batch_idx, "/", len(batch))
-        state = train_step(state, batch) # get updated train state (which contains the updated parameters)
-        state = compute_metrics(state=state, batch=batch) # aggregate batch metrics
+        # Compute metrics on the test set after each training epoch
+        test_state = state
+        for test_batch in ds_train.as_numpy_iterator():
+            test_state = compute_metrics(state=test_state, batch=test_batch)
 
-    for metric, value in state.metrics.compute().items(): # compute metrics
-        metrics_history[f'train_{metric}'].append(value) # record metrics
-    state = state.replace(metrics=state.metrics.empty()) # reset train_metrics for next training epoch
+        for metric, value in test_state.metrics.compute().items():
+            metrics_history[f'test_{metric}'].append(value)
 
-    # Compute metrics on the test set after each training epoch
-    test_state = state
-    for test_batch in dl_train.as_numpy_iterator():
-        test_state = compute_metrics(state=test_state, batch=test_batch)
+        print(f"train epoch: {epoch+1}, "
+            f"loss: {metrics_history['train_loss'][-1]}, "
+            f"accuracy: {metrics_history['train_accuracy'][-1] * 100}")
+        print(f"test epoch: {epoch+1}, "
+            f"loss: {metrics_history['test_loss'][-1]}, "
+            f"accuracy: {metrics_history['test_accuracy'][-1] * 100}")
 
-    for metric, value in test_state.metrics.compute().items():
-        metrics_history[f'test_{metric}'].append(value)
+    import matplotlib.pyplot as plt  # Visualization
 
-    print(f"train epoch: {epoch+1}, "
-        f"loss: {metrics_history['train_loss'][-1]}, "
-        f"accuracy: {metrics_history['train_accuracy'][-1] * 100}")
-    print(f"test epoch: {epoch+1}, "
-        f"loss: {metrics_history['test_loss'][-1]}, "
-        f"accuracy: {metrics_history['test_accuracy'][-1] * 100}")
+    # Plot loss and accuracy in subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+    ax1.set_title('Loss')
+    ax2.set_title('Accuracy')
+    for dataset in ('train','test'):
+        ax1.plot(metrics_history[f'{dataset}_loss'], label=f'{dataset}_loss')
+        ax2.plot(metrics_history[f'{dataset}_accuracy'], label=f'{dataset}_accuracy')
+    ax1.legend()
+    ax2.legend()
+    plt.savefig(f'oneshot_loss_accuracy_{RUN_TIMESTAMP}.png')
 
-import matplotlib.pyplot as plt  # Visualization
 
-# Plot loss and accuracy in subplots
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
-ax1.set_title('Loss')
-ax2.set_title('Accuracy')
-for dataset in ('train','test'):
-    ax1.plot(metrics_history[f'{dataset}_loss'], label=f'{dataset}_loss')
-    ax2.plot(metrics_history[f'{dataset}_accuracy'], label=f'{dataset}_accuracy')
-ax1.legend()
-ax2.legend()
-plt.show()
-plt.clf()
+if __name__ == "__main__":
+    # OOM Error
+    # with jax.profiler.trace("oneshot_jax-trace", create_perfetto_link=True):
+    main()
