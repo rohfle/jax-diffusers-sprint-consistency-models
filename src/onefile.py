@@ -9,6 +9,54 @@ RUN_TIMESTAMP = int(time.time())
 
 np.set_printoptions(precision=2, linewidth=140)
 
+import time
+# a decorator to time functions
+def timeit(func):
+    def runit(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        duration = time.time() - start_time
+        print("time ", func.__name__, ":", duration)
+        return result
+    return runit
+
+def timediter(iterable, label):
+    it = iter(iterable)
+    while True:
+        try:
+            start = time.time()
+            value = next(it)
+            end = time.time()
+            print(f"time {label} yield: {end - start:.6f} seconds")
+            yield value
+        except StopIteration:
+            break
+
+def profile(name, limit=3):
+    def outer(func):
+        left = limit
+        def runit(*args, **kwargs):
+            if left > 0:
+                with jax.profiler.trace(name, create_perfetto_link=True):
+                    return func(*args, **kwargs)
+            else:
+                return func(*args, **kwargs)
+        return runit
+    return outer
+
+def profileiter(iterable, label, limit=3):
+    it = iter(iterable)
+    try:
+        with jax.profiler.trace(label, create_perfetto_link=True):
+            for i in range(limit):
+                yield next(it)
+
+        while True:
+            yield next(it)
+    except StopIteration:
+        pass
+
+
 
 class CNN(nn.Module):
     """A simple CNN model."""
@@ -35,15 +83,16 @@ IMAGE_DTYPE = jnp.bfloat16
 SHUFFLE_SEED = 42
 SHUFFLE_BUFFER_SIZE = 10_000
 
-dataset = load_dataset('fashion_mnist').shuffle(seed=SHUFFLE_SEED)
-train_sample_count = len(dataset['train'])
-valid_sample_count = len(dataset['test'])
-dataset['train'] = dataset['train'].flatten_indices()
-dataset['test'] = dataset['test'].flatten_indices()
+USE_STREAMING = False
+if USE_STREAMING:
+    dataset = load_dataset('fashion_mnist', streaming=True).shuffle(seed=SHUFFLE_SEED, buffer_size=SHUFFLE_BUFFER_SIZE)
+else:
+    dataset = load_dataset('fashion_mnist').shuffle(seed=SHUFFLE_SEED)
+    dataset['train'] = dataset['train'].flatten_indices()
+    dataset['test'] = dataset['test'].flatten_indices()
+
 dataset = dataset.with_format('jax')
-# BUG: https://github.com/huggingface/datasets/issues/5756
-# cant use load_dataset(streaming=True) with shuffle
-#.shuffle(seed=SHUFFLE_SEED, buffer_size=SHUFFLE_BUFFER_SIZE)
+
 
 def transform_and_collate(batch):
     images = np.stack(batch['image'])  # stack all the images into one giant array
@@ -118,16 +167,16 @@ def main():
     state = create_train_state(cnn, init_rng, learning_rate, momentum, image_shape=image_shape)
     del init_rng  # Must not be used anymore.
 
-
     metrics_history = {'train_loss': [],
                     'train_accuracy': [],
                     'test_loss': [],
                     'test_accuracy': []}
 
     for epoch in range(NUM_EPOCHS):
-        # ds_train.set_epoch(epoch)  # randomize the batches
+        if USE_STREAMING:
+            ds_train.set_epoch(epoch)  # randomize the batches
         pbar = tqdm(ds_train)
-        for batch in tqdm(ds_train):
+        for batch in tqdm(profileiter(ds_train, 'ds_train')):
             pbar.set_description('Training...')
             state = train_step(state, batch) # get updated train state (which contains the updated parameters)
             pbar.set_description('Computing metrics...')
@@ -168,6 +217,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # OOM Error
-    # with jax.profiler.trace("oneshot_jax-trace", create_perfetto_link=True):
     main()
