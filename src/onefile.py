@@ -44,12 +44,11 @@ def profile(name, limit=3):
         return runit
     return outer
 
-def profileiter(iterable, label, limit=3):
+def profileiter(iterable, label):
     it = iter(iterable)
     try:
         with jax.profiler.trace(label, create_perfetto_link=True):
-            for i in range(limit):
-                yield next(it)
+            yield next(it)
 
         while True:
             yield next(it)
@@ -83,7 +82,7 @@ IMAGE_DTYPE = jnp.bfloat16
 SHUFFLE_SEED = 42
 SHUFFLE_BUFFER_SIZE = 10_000
 
-USE_STREAMING = False
+USE_STREAMING = True
 if USE_STREAMING:
     dataset = load_dataset('fashion_mnist', streaming=True).shuffle(seed=SHUFFLE_SEED, buffer_size=SHUFFLE_BUFFER_SIZE)
 else:
@@ -105,8 +104,8 @@ def transform_and_collate(batch):
 
     return {
         # by wrapping with a list here, its possible to keep the batch all together
-        'image': [images],
-        'label': [labels],
+        'image': images.reshape(1, *images.shape),
+        'label': labels.reshape(1, *labels.shape),
     }
 
 ds_train = dataset['train'].map(transform_and_collate, batched=True, batch_size=BATCH_SIZE, drop_last_batch=True)
@@ -176,7 +175,7 @@ def main():
         if USE_STREAMING:
             ds_train.set_epoch(epoch)  # randomize the batches
         pbar = tqdm(ds_train)
-        for batch in tqdm(profileiter(ds_train, 'ds_train')):
+        for batch in pbar:
             pbar.set_description('Training...')
             state = train_step(state, batch) # get updated train state (which contains the updated parameters)
             pbar.set_description('Computing metrics...')
@@ -189,7 +188,7 @@ def main():
 
         # Compute metrics on the test set after each training epoch
         test_state = state
-        for test_batch in ds_train.as_numpy_iterator():
+        for test_batch in ds_train:
             test_state = compute_metrics(state=test_state, batch=test_batch)
 
         for metric, value in test_state.metrics.compute().items():
