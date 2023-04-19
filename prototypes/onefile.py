@@ -130,8 +130,11 @@ def create_train_state(module, rng, learning_rate, momentum, image_shape):
     params = module.init(rng, jnp.ones([1, *image_shape]))['params'] # initialize parameters by passing a template image
     tx = optax.sgd(learning_rate, momentum)
     return TrainState.create(
-        apply_fn=module.apply, params=params, tx=tx,
-        metrics=Metrics.empty())
+        apply_fn=module.apply,
+        params=params,
+        tx=tx,
+        metrics=Metrics.empty()
+    )
 
 @jax.jit
 def train_step(state, batch):
@@ -139,7 +142,9 @@ def train_step(state, batch):
     def loss_fn(params):
         logits = state.apply_fn({'params': params}, batch['image'])
         loss = optax.softmax_cross_entropy_with_integer_labels(
-            logits=logits, labels=batch['label']).mean()
+            logits=logits,
+            labels=batch['label']
+        ).mean()
         return loss
     grad_fn = jax.grad(loss_fn)
     grads = grad_fn(state.params)
@@ -150,9 +155,14 @@ def train_step(state, batch):
 def compute_metrics(*, state, batch):
     logits = state.apply_fn({'params': state.params}, batch['image'])
     loss = optax.softmax_cross_entropy_with_integer_labels(
-            logits=logits, labels=batch['label']).mean()
+        logits=logits,
+        labels=batch['label']
+    ).mean()
     metric_updates = state.metrics.single_from_model_output(
-        logits=logits, labels=batch['label'], loss=loss)
+        logits=logits,
+        labels=batch['label'],
+        loss=loss
+    )
     metrics = state.metrics.merge(metric_updates)
     state = state.replace(metrics=metrics)
     return state
