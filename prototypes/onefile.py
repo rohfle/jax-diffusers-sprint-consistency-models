@@ -125,12 +125,12 @@ class Metrics(metrics.Collection):
 class TrainState(train_state.TrainState):
     metrics: Metrics
 
-def create_train_state(module, rng, learning_rate, momentum, image_shape):
+def create_train_state(model, rng, learning_rate, momentum, image_shape):
     """Creates an initial `TrainState`."""
-    params = module.init(rng, jnp.ones([1, *image_shape]))['params'] # initialize parameters by passing a template image
+    params = model.init(rng, jnp.ones([1, *image_shape]))['params'] # initialize parameters by passing a template image
     tx = optax.sgd(learning_rate, momentum)
     return TrainState.create(
-        apply_fn=module.apply,
+        apply_fn=model.apply,
         params=params,
         tx=tx,
         metrics=Metrics.empty()
