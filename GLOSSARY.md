@@ -1,4 +1,7 @@
-GLOSSARY OF TERMS
+# GLOSSARY OF TERMS
+
+### what is DDPM
+- denoising diffusion probalistic models
 
 ### what is convolution
 - a mixture of two functions
