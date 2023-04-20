@@ -7,15 +7,18 @@ def l2_loss(logit, target):
 def l1_loss(logit, target):
     return jnp.abs(logit - target)
 
-def get_loss_function(config):
-    if config.training.loss_type == 'l1' :
+def mse_loss(logit, target):
+    return jnp.mean((logit - target) ** 2)
+
+def get_loss_function(loss_type):
+    if loss_type == 'l1' :
         loss_fn = l1_loss
-    elif config.training.loss_type == 'l2':
+    elif loss_type == 'l2':
         loss_fn = l2_loss
-    elif config.training.loss_type == 'mse':
+    elif loss_type == 'mse':
         loss_fn = mse_loss
     else:
         raise NotImplementedError(
-           f'loss_type {config.training.loss_tyoe} not supported yet!')
+           f'loss_type {loss_type} not supported yet!')
 
     return loss_fn

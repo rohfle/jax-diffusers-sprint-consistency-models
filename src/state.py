@@ -10,5 +10,6 @@ class Metrics(metrics.Collection):
     loss: metrics.Average.from_output('loss')
 
 class TrainState(train_state.TrainState):
+    loss_fn: Any
     ema_params: core.FrozenDict[str, Any] = struct.field(pytree_node=True)
     metrics: Metrics
