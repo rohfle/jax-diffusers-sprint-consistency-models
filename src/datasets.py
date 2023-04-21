@@ -2,14 +2,14 @@ import numpy as np
 import ml_collections
 from datasets import load_dataset
 
-def get_dataset(name : str, config : ml_collections.ConfigDict):
+def get_dataset(rng, config : ml_collections.ConfigDict):
     if config.data.use_streaming:
-        dataset = load_dataset(name, streaming=True).shuffle(
-            seed=config.data.shuffle_seed,
+        dataset = load_dataset(config.data.dataset, streaming=True).shuffle(
+            seed=rng,
             buffer_size=config.data.shufle_buffer_size
         )
     else:
-        dataset = load_dataset(name).shuffle(seed=config.data.shuffle_seed)
+        dataset = load_dataset(config.data.dataset).shuffle(seed=rng)
         dataset['train'] = dataset['train'].flatten_indices()
         dataset['test'] = dataset['test'].flatten_indices()
     dataset = dataset.with_format('jax')

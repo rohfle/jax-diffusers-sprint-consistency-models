@@ -48,13 +48,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
         dim_mults=config.model.dim_mults)
 
     rng, rng_params = jax.random.split(rng)
-    image_size = config.data.image_size
-    if config.ddpm.self_condition:
-        image_channels = config.data.channels * 2
-    else:
-        image_channels = config.data.channels
-
-    params = init_model(rng_params, image_size, image_channels, model)
+    params = init_model(rng_params, config.data.image_size, config.data.channels, model)
     tx = create_optimizer(config.optim)
     loss_fn = get_loss_function(config.training.loss_type)
     apply_fn = consistency.model_wrapper(model.apply, config.training.epsilon)
@@ -110,7 +104,7 @@ def train(config: ml_collections.ConfigDict):
             state = consistency.update_N(state, epoch, config.training.num_epochs)
             rng, *train_step_rng = jax.random.split(rng, num=jax.local_device_count() + 1)
             train_step_rng = jnp.asarray(train_step_rng)
-            state, metrics = train_step(train_step_rng, state, batch)
+            state, metrics = p_train_step(train_step_rng, state, batch)
             train_metrics.append(metrics)
             # TODO: profile
             if step == step_offset:

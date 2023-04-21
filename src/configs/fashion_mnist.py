@@ -18,45 +18,31 @@ def get_config():
 
   # training
   config.training = training = ml_collections.ConfigDict()
-  training.num_epochs = 10
-  training.num_train_steps = 12000
-  training.log_every_steps = 100
-  training.loss_type = 'l1'
-  training.half_precision = False
-  training.save_and_sample_every = 1000
-  training.num_sample = 64
+  training.num_epochs = 10  # OK
+  training.loss_type = 'mse'  # OK
+  training.half_precision = True  # OK
+  training.save_and_sample_every = 1000  # OK
+  training.num_sample = 64  # OK
 
 
   # ema
   config.ema = ema = ml_collections.ConfigDict()
-  ema.beta = 0.995
-  ema.update_every = 10
-  ema.update_after_step = 100
-  ema.inv_gamma = 1.0
-  ema.power = 2 / 3
-  ema.min_value = 0.0
+  # TODO ?
 
 
   # ddpm
   config.ddpm = ddpm = ml_collections.ConfigDict()
-  ddpm.beta_schedule = 'linear'
-  ddpm.timesteps = 1000
-  ddpm.p2_loss_weight_gamma = 0. # p2 loss weight, from https://arxiv.org/abs/2204.00227 - 0 is equivalent to weight of 1 across time - 1. is recommended
-  ddpm.p2_loss_weight_k = 1
-  ddpm.self_condition = False # not tested yet
-  ddpm.pred_x0 = False # by default, the model will predict noise, if True predict x0
+  # TODO ?
 
 
   # data
   config.data = data = ml_collections.ConfigDict()
-  data.dataset = 'fashion_mnist'
-  data.streaming = True
-  data.shuffle_seed = 42
-  data.shuffle_buffer_size = 10000
   data.batch_size = 128 * 8
-  data.cache = False
-  data.image_size = 28
   data.channels = 1
+  data.dataset = 'fashion_mnist'
+  data.image_size = 28
+  data.shuffle_buffer_size = 10000
+  data.use_streaming = True
 
 
   # model
@@ -68,10 +54,7 @@ def get_config():
   # optim
   config.optim = optim = ml_collections.ConfigDict()
   optim.optimizer = 'AdamW'
-  optim.lr = 1e-3
-  optim.beta1 = 0.9
-  optim.beta2 = 0.99
-  optim.eps = 1e-8
+  optim.lr = 3e-5
 
   config.seed = 42
 
