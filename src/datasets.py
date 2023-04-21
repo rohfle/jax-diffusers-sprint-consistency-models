@@ -6,7 +6,7 @@ def get_dataset(rng, config : ml_collections.ConfigDict):
     if config.data.use_streaming:
         dataset = load_dataset(config.data.dataset, streaming=True).shuffle(
             seed=rng,
-            buffer_size=config.data.shufle_buffer_size
+            buffer_size=config.data.shuffle_buffer_size
         )
     else:
         dataset = load_dataset(config.data.dataset).shuffle(seed=rng)
