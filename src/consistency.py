@@ -3,6 +3,15 @@ import jax.numpy as jnp
 import jax
 
 
+
+def calculate_N(N, epoch, num_epochs):
+    return jnp.ceil(jnp.sqrt((epoch+1 * (N**2 - 4) / num_epochs) + 4) - 1) + 1
+
+def update_N(state, epoch, num_epochs):
+    new_N = calculate_N(state.N, epoch, num_epochs)
+    # TODO: add N_ramp?
+    state = state.replace(N=new_N)
+
 # Page 3, Network and preconditioning (Section 5), column Ours ("EDM")
 def scalings(sig : Array, eps : float, sig_data=0.5) -> Tuple[Array, Array, Array]:
     c_skip = sig_data ** 2 / ((sig - eps) ** 2 + sig_data ** 2)
@@ -13,6 +22,7 @@ def scalings(sig : Array, eps : float, sig_data=0.5) -> Tuple[Array, Array, Arra
 
 # Page 3, Sampling (Section 3), column Ours ("EDM")
 # not jitable due to jnp.linspace
+# TODO: change this to an n_ramp, pass from outside?
 def sigmas_karras(n : int, sigma_min=0.002, sigma_max=80., rho=7.) -> Array:
     # rising from 0 to 1 over n steps
     ramp : Array = jnp.linspace(0, 1, n)
@@ -23,12 +33,10 @@ def sigmas_karras(n : int, sigma_min=0.002, sigma_max=80., rho=7.) -> Array:
     return sigmas.flip(dims=(-1,))  ## always using flip so put it here for now
 
 
-# all this is doing is adding some non-linear noise to the image
+# this is adding some non linear noise to fun
 def ct_sample(rng, x0, N):
     # image = x0
     # noise = z
-    # ? = t
-    # ? = sigmas
     noise_sched = sigmas_karras(N)
     #  0 =< t < self.N-1, obtain a random integer tensor of length len(x0)
     rng_t, rng_z = jax.random.split(rng)

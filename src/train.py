@@ -68,7 +68,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
     return state
 
 
-def train_step(rng, state, batch, config, pmap_axis='batch'):
+def train_step(rng, state, batch, pmap_axis='batch'):
     x0 = batch['image']
     batch_t_ema, batch_t = consistency.ct_sample(rng, x0, state.N)
     preds_ema = state.apply_fn({'params': state.ema_params}, batch_t_ema[0], batch_t_ema[1])
@@ -76,21 +76,14 @@ def train_step(rng, state, batch, config, pmap_axis='batch'):
     def compute_loss(params):
         preds = state.apply_fn({'params': params}, batch_t[0], batch_t[1])
         loss = state.loss_fn(preds_ema, preds)
-# WORKING HERE START
-        loss = jnp.mean(loss, axis=1)
-        assert loss.shape == (B,)
-        return loss.mean()
-    compute_loss_and_grads = jax.value_and_grad(compute_loss)
+        return loss
+    compute_loss_and_grads = jax.value_and_grad(compute_loss, has_aux=True)
 
     loss, grads = compute_loss_and_grads(state.params)
     grads = jax.lax.pmean(grads, axis_name=pmap_axis)
-
     loss = jax.lax.pmean(loss, axis_name=pmap_axis)
-    loss_ema = jax.lax.pmean(compute_loss(state.params_ema), axis_name=pmap_axis)
-# WORKING HERE STOP
     metrics = {
         'loss': loss,
-        'loss_ema': loss_ema
     }
 
     new_state = state.apply_gradients(grads=grads)
@@ -108,12 +101,13 @@ def train(config: ml_collections.ConfigDict):
     step_offset = 0  # dont know what this is
     train_metrics = []
 
-    for epoch in range(NUM_EPOCHS):
+    for epoch in range(config.training.num_epochs):
         if config.data.use_streaming:
             ds_train.set_epoch(epoch)  # randomize the batches
         pbar = tqdm(ds_train)
         for step, batch in enumerate(pbar):
             pbar.set_description('Training...')
+            state = consistency.update_N(state, epoch, config.training.num_epochs)
             rng, *train_step_rng = jax.random.split(rng, num=jax.local_device_count() + 1)
             train_step_rng = jnp.asarray(train_step_rng)
             state, metrics = train_step(train_step_rng, state, batch)

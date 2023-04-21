@@ -18,6 +18,7 @@ def get_config():
 
   # training
   config.training = training = ml_collections.ConfigDict()
+  training.num_epochs = 10
   training.num_train_steps = 12000
   training.log_every_steps = 100
   training.loss_type = 'l1'
