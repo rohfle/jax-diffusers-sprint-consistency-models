@@ -1,8 +1,14 @@
+import jax
 import numpy as np
 import ml_collections
+from flax import jax_utils
 from datasets import load_dataset
 
-def get_dataset(rng, config : ml_collections.ConfigDict):
+def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
+    batch_size = config.data.batch_size
+    if batch_size % split_into != 0:
+        raise ValueError('Batch size must be divisible by the number of sub batches')
+
     if config.data.use_streaming:
         dataset = load_dataset(config.data.dataset, streaming=True).shuffle(
             seed=42, # rng currently not working
@@ -22,11 +28,14 @@ def get_dataset(rng, config : ml_collections.ConfigDict):
         images = np.pad(images, [[0], [2], [2], [0]])  # add padding to width and height
         images = np.array(images * 2 - 1)  # output range will be -1.0 to 1.0
         labels = np.array(batch['label'])
+        # reshape in a way that supports pmap
+        images = images.reshape((1, split_into, -1) + images.shape[1:])
+        labels = labels.reshape((1, split_into, -1) + labels.shape[1:])
 
         return {
             # by wrapping with a list here, its possible to keep the batch all together
-            'image': images.reshape(1, *images.shape),
-            'label': labels.reshape(1, *labels.shape),
+            'image': images,
+            'label': labels,
         }
 
     ds_train = dataset['train'].map(transform_and_collate, batched=True, batch_size=config.data.batch_size, drop_last_batch=True)

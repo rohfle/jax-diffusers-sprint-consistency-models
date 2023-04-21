@@ -86,9 +86,10 @@ p_train_step = jax.pmap(train_step, axis_name='batch')
 
 
 def train(config: ml_collections.ConfigDict):
+    local_device_count = jax.local_device_count()
     rng = jax.random.PRNGKey(config.seed)
     rng, d_rng = jax.random.split(rng)
-    ds_train, ds_valid = get_dataset(d_rng, config)
+    ds_train, ds_valid = get_dataset(d_rng, config, split_into=local_device_count)
     rng, state_rng = jax.random.split(rng)
     state = create_train_state(state_rng, config)
 
@@ -102,11 +103,9 @@ def train(config: ml_collections.ConfigDict):
         for step, batch in enumerate(pbar):
             pbar.set_description('Training...')
             state = consistency.update_N(state, epoch, config.training.num_epochs)
-            rng, *train_step_rng = jax.random.split(rng, num=jax.local_device_count() + 1)
+            rng, *train_step_rng = jax.random.split(rng, num=local_device_count + 1)
             train_step_rng = jnp.asarray(train_step_rng)
-            # split the batch into equal parts
-            batch_parts = jnp.split(batch, jax.local_device_count())
-            state, metrics = p_train_step(train_step_rng, state, batch_parts)
+            state, metrics = p_train_step(train_step_rng, state, batch)
             train_metrics.append(metrics)
             # TODO: profile
             if step == step_offset:
