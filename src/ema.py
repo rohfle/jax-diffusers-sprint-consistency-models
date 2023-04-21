@@ -10,5 +10,5 @@ def calculate_mu(N):
 def update_ema_params(state):
     mu = calculate_mu(state.N)
     update_ema_fn = lambda p_ema, p: p_ema * mu + p * (1. - mu)
-    params_ema = jax.tree_map(update_ema_fn, state.params_ema, state.params)
-    return state.replace(params_ema=params_ema)
+    ema_params = jax.tree_map(update_ema_fn, state.ema_params, state.params)
+    return state.replace(ema_params=ema_params)

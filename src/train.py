@@ -57,7 +57,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
         params=params,
         tx=tx,
         loss_fn=loss_fn,
-        params_ema=params)
+        ema_params=params)
     return state
 
 
