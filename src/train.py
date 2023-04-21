@@ -4,6 +4,7 @@ import jax
 import jax.numpy as jnp
 import ml_collections
 from tqdm import tqdm
+from flax import jax_utils
 
 import consistency
 from state import TrainState
@@ -92,6 +93,7 @@ def train(config: ml_collections.ConfigDict):
     ds_train, ds_valid = get_dataset(d_rng, config, split_into=local_device_count)
     rng, state_rng = jax.random.split(rng)
     state = create_train_state(state_rng, config)
+    state = jax_utils.replicate(state)
 
     step_offset = 0  # dont know what this is
     train_metrics = []
