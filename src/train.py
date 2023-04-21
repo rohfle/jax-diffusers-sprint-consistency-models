@@ -65,7 +65,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
 
 def train_step(rng, state, batch, pmap_axis='batch'):
     x0 = batch
-    batch_t_ema, batch_t = consistency.ct_sample(rng, x0, state.N)
+    batch_t_ema, batch_t = consistency.ct_sample(rng, x0, state.N, state.N_ramp)
     preds_ema = state.apply_fn({'params': state.ema_params}, batch_t_ema[0], batch_t_ema[1])
 
     def compute_loss(params):
