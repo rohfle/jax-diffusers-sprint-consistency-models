@@ -1,9 +1,9 @@
 import functools
 import logging
 import jax
-import tqdm
 import jax.numpy as jnp
 import ml_collections
+from tqdm import tqdm
 
 import consistency
 from state import TrainState
