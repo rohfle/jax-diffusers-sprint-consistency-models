@@ -9,8 +9,11 @@ def calculate_N(N, epoch, num_epochs):
 
 def update_N(state, epoch, num_epochs):
     new_N = calculate_N(state.N, epoch, num_epochs)
-    # TODO: add N_ramp?
-    state = state.replace(N=new_N)
+    if new_N != state.N:
+        new_N_ramp = jnp.linspace(0, 1, new_N)
+    else:
+        new_N_ramp = state.N_ramp
+    state = state.replace(N=new_N, N_ramp=new_N_ramp)
     return state
 
 # Page 3, Network and preconditioning (Section 5), column Ours ("EDM")
@@ -24,21 +27,20 @@ def scalings(sig : jax.Array, eps : float, sig_data=0.5) -> Tuple[jax.Array, jax
 # Page 3, Sampling (Section 3), column Ours ("EDM")
 # not jitable due to jnp.linspace
 # TODO: change this to an n_ramp, pass from outside?
-def sigmas_karras(n : int, sigma_min=0.002, sigma_max=80., rho=7.) -> jax.Array:
+def sigmas_karras(n_ramp : jax.Array, sigma_min=0.002, sigma_max=80., rho=7.) -> jax.Array:
     # rising from 0 to 1 over n steps
-    ramp : jax.Array = jnp.linspace(0, 1, n)
     # this is "Time steps" formula
     min_inv_rho : float = sigma_min ** (1. / rho)
     max_inv_rho : float = sigma_max ** (1. / rho)
-    sigmas = (max_inv_rho + ramp * (min_inv_rho - max_inv_rho)) ** rho
+    sigmas = (max_inv_rho + n_ramp * (min_inv_rho - max_inv_rho)) ** rho
     return sigmas.flip(dims=(-1,))  ## always using flip so put it here for now
 
 
 # this is adding some non linear noise to fun
-def ct_sample(rng, x0, N):
+def ct_sample(rng, x0, N, N_ramp):
     # image = x0
     # noise = z
-    noise_sched = sigmas_karras(N)
+    noise_sched = sigmas_karras(N_ramp)
     #  0 =< t < self.N-1, obtain a random integer tensor of length len(x0)
     rng_t, rng_z = jax.random.split(rng)
     t = jax.random.randint(rng_t, minval=0, maxval=N-1, shape=[len(x0)])
