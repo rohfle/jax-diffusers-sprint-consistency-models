@@ -72,7 +72,7 @@ def train_step(rng, state, batch, pmap_axis='batch'):
         preds = state.apply_fn({'params': params}, batch_t[0], batch_t[1])
         loss = state.loss_fn(preds_ema, preds)
         return loss
-    compute_loss_and_grads = jax.value_and_grad(compute_loss, has_aux=True)
+    compute_loss_and_grads = jax.value_and_grad(compute_loss)
 
     loss, grads = compute_loss_and_grads(state.params)
     grads = jax.lax.pmean(grads, axis_name=pmap_axis)
@@ -116,7 +116,8 @@ def train(config: ml_collections.ConfigDict):
                 logging.info(f"Batch size per device {batch['image'].shape[1]}")
                 logging.info(f"input shape: {batch['image'].shape[2:]}")
 
-            state = update_ema_params(state, step, config)
+            state = update_ema_params(state)
+            print(train_metrics)
             # TODO: log every steps
             # TODO: save a checkpoint periodically
             # TODO: generate samples

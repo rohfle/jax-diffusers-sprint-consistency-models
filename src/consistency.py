@@ -57,6 +57,6 @@ def ct_sample(rng, x0, N, N_ramp):
 def model_wrapper(apply_fn, epsilon):
     def apply(params, x, sigma):
         c_skip, c_out, c_in = scalings(sigma.reshape(-1,1,1,1), epsilon)
-        return c_skip * x + c_out * apply_fn(params, (x, sigma.squeeze()))
+        return c_skip * x + c_out * apply_fn(params, x, sigma.squeeze())
     return apply
 
