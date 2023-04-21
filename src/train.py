@@ -104,7 +104,9 @@ def train(config: ml_collections.ConfigDict):
             state = consistency.update_N(state, epoch, config.training.num_epochs)
             rng, *train_step_rng = jax.random.split(rng, num=jax.local_device_count() + 1)
             train_step_rng = jnp.asarray(train_step_rng)
-            state, metrics = p_train_step(train_step_rng, state, batch)
+            # split the batch into equal parts
+            batch_parts = jnp.split(batch, jax.local_device_count())
+            state, metrics = p_train_step(train_step_rng, state, batch_parts)
             train_metrics.append(metrics)
             # TODO: profile
             if step == step_offset:
