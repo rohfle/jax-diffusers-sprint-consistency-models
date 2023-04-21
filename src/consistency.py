@@ -11,6 +11,7 @@ def update_N(state, epoch, num_epochs):
     new_N = calculate_N(state.N, epoch, num_epochs)
     # TODO: add N_ramp?
     state = state.replace(N=new_N)
+    return state
 
 # Page 3, Network and preconditioning (Section 5), column Ours ("EDM")
 def scalings(sig : jax.Array, eps : float, sig_data=0.5) -> Tuple[jax.Array, jax.Array, jax.Array]:
