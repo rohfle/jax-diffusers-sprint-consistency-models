@@ -63,7 +63,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
 
 
 def train_step(rng, state, batch, pmap_axis='batch'):
-    x0 = batch['image']
+    x0 = batch
     batch_t_ema, batch_t = consistency.ct_sample(rng, x0, state.N)
     preds_ema = state.apply_fn({'params': state.ema_params}, batch_t_ema[0], batch_t_ema[1])
 
@@ -105,7 +105,7 @@ def train(config: ml_collections.ConfigDict):
             state = consistency.update_N(state, epoch, config.training.num_epochs)
             rng, *train_step_rng = jax.random.split(rng, num=local_device_count + 1)
             train_step_rng = jnp.asarray(train_step_rng)
-            state, metrics = p_train_step(train_step_rng, state, batch)
+            state, metrics = p_train_step(train_step_rng, state, batch['image'])
             train_metrics.append(metrics)
             # TODO: profile
             if step == step_offset:
