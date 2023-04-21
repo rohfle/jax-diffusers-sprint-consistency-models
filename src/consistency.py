@@ -9,10 +9,9 @@ def calculate_N(N, epoch, num_epochs):
 
 def update_N(state, epoch, num_epochs):
     new_N = calculate_N(state.N, epoch, num_epochs)
-    if new_N != state.N:
-        new_N_ramp = jnp.linspace(0, 1, new_N)
-    else:
-        new_N_ramp = state.N_ramp
+    # because the schedule is always flipped, switch 0, 1 -> 1, 0
+    ramp = jnp.linspace(1, 0, int(new_N[0]))
+    new_N_ramp = jnp.tile(ramp, (len(new_N), 1))
     state = state.replace(N=new_N, N_ramp=new_N_ramp)
     return state
 
@@ -33,7 +32,7 @@ def sigmas_karras(n_ramp : jax.Array, sigma_min=0.002, sigma_max=80., rho=7.) ->
     min_inv_rho : float = sigma_min ** (1. / rho)
     max_inv_rho : float = sigma_max ** (1. / rho)
     sigmas = (max_inv_rho + n_ramp * (min_inv_rho - max_inv_rho)) ** rho
-    return sigmas.flip(dims=(-1,))  ## always using flip so put it here for now
+    return sigmas  ## always using flip so put it here for now
 
 
 # this is adding some non linear noise to fun

@@ -8,4 +8,4 @@ class TrainState(train_state.TrainState):
     loss_fn: Callable = struct.field(pytree_node=False)
     ema_params: core.FrozenDict[str, Any] = struct.field(pytree_node=True)
     N: Any
-    N_ramp: jax.Array
+    N_ramp: Any = None
