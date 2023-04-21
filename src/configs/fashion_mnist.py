@@ -24,6 +24,7 @@ def get_config():
   training.save_and_sample_every = 1000
   training.num_sample = 64
   training.epsilon = 0.002
+  training.N = 150
 
 
   # ema
