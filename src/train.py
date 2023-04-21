@@ -1,18 +1,17 @@
 import functools
 import logging
 import jax
-import optax
 import tqdm
 import jax.numpy as jnp
 import ml_collections
 
-from . import consistency
-from .state import TrainState
-from .models import Unet
-from .datasets import get_dataset
-from .loss import get_loss_function
-from .ema import update_ema_params
-from .optimizers import create_optimizer
+import consistency
+from state import TrainState
+from models import Unet
+from loaders import get_dataset
+from loss import get_loss_function
+from ema import update_ema_params
+from optimizers import create_optimizer
 
 
 def create_model(*, model_cls, half_precision, **kwargs):

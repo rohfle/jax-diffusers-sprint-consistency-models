@@ -1,4 +1,4 @@
-from typing import Array, Tuple
+from typing import Tuple
 import jax.numpy as jnp
 import jax
 
@@ -13,7 +13,7 @@ def update_N(state, epoch, num_epochs):
     state = state.replace(N=new_N)
 
 # Page 3, Network and preconditioning (Section 5), column Ours ("EDM")
-def scalings(sig : Array, eps : float, sig_data=0.5) -> Tuple[Array, Array, Array]:
+def scalings(sig : jax.Array, eps : float, sig_data=0.5) -> Tuple[jax.Array, jax.Array, jax.Array]:
     c_skip = sig_data ** 2 / ((sig - eps) ** 2 + sig_data ** 2)
     c_out = (sig - eps) * sig_data / jnp.sqrt(sig ** 2 + sig_data ** 2)
     c_in = 1 / jnp.sqrt((sig - eps) ** 2 + sig_data ** 2)
@@ -23,9 +23,9 @@ def scalings(sig : Array, eps : float, sig_data=0.5) -> Tuple[Array, Array, Arra
 # Page 3, Sampling (Section 3), column Ours ("EDM")
 # not jitable due to jnp.linspace
 # TODO: change this to an n_ramp, pass from outside?
-def sigmas_karras(n : int, sigma_min=0.002, sigma_max=80., rho=7.) -> Array:
+def sigmas_karras(n : int, sigma_min=0.002, sigma_max=80., rho=7.) -> jax.Array:
     # rising from 0 to 1 over n steps
-    ramp : Array = jnp.linspace(0, 1, n)
+    ramp : jax.Array = jnp.linspace(0, 1, n)
     # this is "Time steps" formula
     min_inv_rho : float = sigma_min ** (1. / rho)
     max_inv_rho : float = sigma_max ** (1. / rho)

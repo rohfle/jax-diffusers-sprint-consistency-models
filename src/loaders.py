@@ -5,11 +5,11 @@ from datasets import load_dataset
 def get_dataset(rng, config : ml_collections.ConfigDict):
     if config.data.use_streaming:
         dataset = load_dataset(config.data.dataset, streaming=True).shuffle(
-            seed=rng,
+            seed=42, # rng currently not working
             buffer_size=config.data.shuffle_buffer_size
         )
     else:
-        dataset = load_dataset(config.data.dataset).shuffle(seed=rng)
+        dataset = load_dataset(config.data.dataset).shuffle(seed=42)
         dataset['train'] = dataset['train'].flatten_indices()
         dataset['test'] = dataset['test'].flatten_indices()
     dataset = dataset.with_format('jax')
