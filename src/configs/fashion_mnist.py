@@ -18,11 +18,12 @@ def get_config():
 
   # training
   config.training = training = ml_collections.ConfigDict()
-  training.num_epochs = 10  # OK
-  training.loss_type = 'mse'  # OK
-  training.half_precision = True  # OK
-  training.save_and_sample_every = 1000  # OK
-  training.num_sample = 64  # OK
+  training.num_epochs = 10
+  training.loss_type = 'mse'
+  training.half_precision = True
+  training.save_and_sample_every = 1000
+  training.num_sample = 64
+  training.epsilon = 0.002
 
 
   # ema
