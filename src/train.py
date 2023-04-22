@@ -6,13 +6,13 @@ import ml_collections
 from tqdm import tqdm
 from flax import jax_utils
 
-import consistency
-from state import TrainState
-from models import Unet
-from loaders import get_dataset
-from loss import get_loss_function
-from ema import update_ema_params
-from optimizers import create_optimizer
+from lib import consistency
+from lib.state import TrainState
+from lib.models import Unet
+from lib.loaders import get_dataset
+from lib.loss import get_loss_function
+from lib.ema import update_ema_params
+from lib.optimizers import create_optimizer
 
 
 def create_model(*, model_cls, half_precision, **kwargs):
