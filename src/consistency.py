@@ -7,13 +7,16 @@ import jax
 def calculate_N(N, epoch, num_epochs):
     return jnp.ceil(jnp.sqrt((epoch+1 * (N**2 - 4) / num_epochs) + 4) - 1) + 1
 
+
 def update_N(state, epoch, num_epochs):
     new_N = calculate_N(state.N, epoch, num_epochs)
     # because the schedule is always flipped, switch 0, 1 -> 1, 0
     ramp = jnp.linspace(1, 0, int(new_N[0]))
+    # tile to match the dimensions of N
     new_N_ramp = jnp.tile(ramp, (len(new_N), 1))
     state = state.replace(N=new_N, N_ramp=new_N_ramp)
     return state
+
 
 # Page 3, Network and preconditioning (Section 5), column Ours ("EDM")
 def scalings(sig : jax.Array, eps : float, sig_data=0.5) -> Tuple[jax.Array, jax.Array, jax.Array]:
@@ -24,15 +27,12 @@ def scalings(sig : jax.Array, eps : float, sig_data=0.5) -> Tuple[jax.Array, jax
 
 
 # Page 3, Sampling (Section 3), column Ours ("EDM")
-# not jitable due to jnp.linspace
-# TODO: change this to an n_ramp, pass from outside?
 def sigmas_karras(n_ramp : jax.Array, sigma_min=0.002, sigma_max=80., rho=7.) -> jax.Array:
-    # rising from 0 to 1 over n steps
     # this is "Time steps" formula
     min_inv_rho : float = sigma_min ** (1. / rho)
     max_inv_rho : float = sigma_max ** (1. / rho)
     sigmas = (max_inv_rho + n_ramp * (min_inv_rho - max_inv_rho)) ** rho
-    return sigmas  ## always using flip so put it here for now
+    return sigmas
 
 
 # this is adding some non linear noise to fun
