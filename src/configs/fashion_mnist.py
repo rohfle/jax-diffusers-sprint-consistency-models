@@ -7,13 +7,13 @@ def get_config():
 
   # wandb
   config.wandb = wandb = ml_collections.ConfigDict()
-  # wandb.entity = None # team name, must have already created
-  # wandb.project = "ddpm-flax-fashion-mnist"  # required filed if use W&B logging
-  # wandb.job_type = "training"
-  # wandb.name = None # run name, optional
+  wandb.entity = "hfjs-consistency" # team name, must have already created
+  wandb.project = "hfjs-consistency-fashion-mnist"  # required filed if use W&B logging
+  wandb.job_type = "training"
+  wandb.name = None # run name, optional
   wandb.log_train = True # log training metrics
-  # wandb.log_sample = True # log generated samples to W&B
-  # wandb.log_model = True # log final model checkpoint as W&B artifact
+  wandb.log_sample = True # log generated samples to W&B
+  wandb.log_model = True # log final model checkpoint as W&B artifact
 
 
   # training
