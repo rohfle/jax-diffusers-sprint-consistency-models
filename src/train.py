@@ -1,11 +1,15 @@
 import functools
 import logging
+import time
 import jax
 import jax.numpy as jnp
 import ml_collections
 from tqdm import tqdm
 from flax import jax_utils
+from clu import metric_writers
+from clu import periodic_actions
 
+from lib import monitoring
 from lib import consistency
 from lib.state import TrainState
 from lib.models import Unet
@@ -86,18 +90,45 @@ def train_step(rng, state, batch, pmap_axis='batch'):
 p_train_step = jax.pmap(train_step, axis_name='batch')
 
 
-def train(config: ml_collections.ConfigDict):
+def train(config: ml_collections.ConfigDict,
+          workdir: str,
+          wandb_artifact: str = None):
+    first_jax_process = jax.process_index() == 0
+    # setup wandb
+    if config.wandb.log_train and first_jax_process:
+        monitoring.setup_wandb(config)
+    # create a writer for logging training
+    writer = metric_writers.create_default_writer(
+        logdir=workdir,
+        just_logging=not first_jax_process,
+    )
+    training_logger = None
+    if config.training.get('log_every_steps'):
+        training_logger = monitoring.training_logger(config, writer, first_jax_process)
+    sample_logger = None
+    if config.training.get('save_and_sample_every'):
+        sample_logger = monitoring.sample_logger(config, workdir, consistency.p_sample_step)
+    profile_logger = None
+    if first_jax_process:
+        profile_logger = periodic_actions.Profile(num_profile_steps=5, logdir=workdir)
+
+    # setup random number generator
     local_device_count = jax.local_device_count()
     rng = jax.random.PRNGKey(config.seed)
     rng, d_rng = jax.random.split(rng)
+    # load dataset
     ds_train, ds_valid = get_dataset(d_rng, config, split_into=local_device_count)
     rng, state_rng = jax.random.split(rng)
+    # create initial train state
     state = create_train_state(state_rng, config)
     state = jax_utils.replicate(state)
 
     step_offset = 0  # dont know what this is
     train_metrics = []
 
+    last_logged_at = time.time()
+    # start training
+    logging.info('Initial compilation, this might take some minutes...')
     for epoch in range(config.training.num_epochs):
         if config.data.use_streaming:
             ds_train.set_epoch(epoch)  # randomize the batches
@@ -108,7 +139,6 @@ def train(config: ml_collections.ConfigDict):
             rng, *train_step_rng = jax.random.split(rng, num=local_device_count + 1)
             train_step_rng = jnp.asarray(train_step_rng)
             state, metrics = p_train_step(train_step_rng, state, batch['image'])
-            train_metrics.append(metrics)
             # TODO: profile
             if step == step_offset:
                 logging.info('Initial compilation completed.')
@@ -117,7 +147,21 @@ def train(config: ml_collections.ConfigDict):
                 logging.info(f"input shape: {batch['image'].shape[2:]}")
 
             state = update_ema_params(state)
-            print(train_metrics)
-            # TODO: log every steps
+
+            if profile_logger:
+                profile_logger(step)
+
+            if training_logger:
+                train_metrics += [metrics]
+                train_metrics, last_logged_at = training_logger(step, train_metrics, last_logged_at)
+
+            if sample_logger:
+                rng, sample_rng = jax.random.split(rng)
+                sample_logger(sample_rng, step, config.training.num_sample)
+
             # TODO: save a checkpoint periodically
-            # TODO: generate samples
+
+    # Wait until computations are done before exiting
+    jax.random.normal(jax.random.PRNGKey(0), ()).block_until_ready()
+
+    return(state)
