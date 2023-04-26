@@ -21,8 +21,8 @@ def get_config():
   training.num_epochs = 10
   training.loss_type = 'mse'
   training.half_precision = True
-  training.log_every_steps = 10
-  training.save_and_sample_every = 1000
+  training.log_every_steps = 1
+  training.save_and_sample_every = 1
   training.num_samples = 64
   training.epsilon = 0.002
   training.N = 150
