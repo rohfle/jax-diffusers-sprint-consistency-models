@@ -21,6 +21,7 @@ def get_config():
   training.num_epochs = 10
   training.loss_type = 'mse'
   training.half_precision = True
+  training.log_every_steps = 10
   training.save_and_sample_every = 1000
   training.num_samples = 64
   training.epsilon = 0.002
@@ -39,7 +40,7 @@ def get_config():
 
   # data
   config.data = data = ml_collections.ConfigDict()
-  data.batch_size = 128 * 8
+  data.batch_size = 64 * 4
   data.channels = 1
   data.dataset = 'fashion_mnist'
   data.image_size = 28
