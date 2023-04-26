@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 import jax
 import jax.numpy as jnp
@@ -92,6 +93,8 @@ p_train_step = jax.pmap(train_step, axis_name='batch')
 def train(config: ml_collections.ConfigDict,
           workdir: str,
           wandb_artifact: str = None):
+    sampledir = os.path.join(workdir, 'samples')
+    os.makedirs(sampledir, exist_ok=True)
     first_jax_process = jax.process_index() == 0
     # setup wandb
     if config.wandb.log_train and first_jax_process:
@@ -106,7 +109,7 @@ def train(config: ml_collections.ConfigDict,
         training_logger = monitoring.training_logger(config, writer, first_jax_process)
     sample_logger = None
     if config.training.get('save_and_sample_every'):
-        sample_logger = monitoring.sample_logger(config, workdir)
+        sample_logger = monitoring.sample_logger(config, sampledir)
     profile_logger = None
     if first_jax_process:
         profile_logger = periodic_actions.Profile(num_profile_steps=5, logdir=workdir)

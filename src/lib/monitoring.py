@@ -45,7 +45,6 @@ def setup_wandb(config):
 
 
 def training_logger(config, writer, use_wandb):
-    @functools.wraps
     def inner(step, train_metrics, last_log_time):
         if (step + 1) % config.training.log_every_steps != 0:
             return train_metrics, False
@@ -70,11 +69,7 @@ def training_logger(config, writer, use_wandb):
     return inner
 
 
-def sample_logger(config, workdir):
-    sample_dir = os.path.join(workdir, 'samples')
-    os.makedirs(sample_dir, exist_ok=True)
-
-    @functools.wraps
+def sample_logger(config, sample_dir):
     def inner(rng, step, state, batch):
         if (step + 1) % config.training.save_and_sample_every != 0:
             return
