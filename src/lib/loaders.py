@@ -1,4 +1,5 @@
 import jax
+from jax import numpy as jnp
 import numpy as np
 import ml_collections
 from flax import jax_utils
@@ -26,8 +27,8 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
         images = images.reshape(*images.shape[:3], -1)  # to allow for grayscale 1 channel images
         images = images / 255  # range 0.0 to 1.0
         images = np.pad(images, [[0], [2], [2], [0]])  # add padding to width and height
-        images = np.array(images * 2 - 1)  # output range will be -1.0 to 1.0
-        labels = np.array(batch['label'])
+        images = jnp.array(images) * 2 - 1  # output range will be -1.0 to 1.0
+        labels = jnp.array(batch['label'])
         # reshape in a way that supports pmap
         images = images.reshape((1, split_into, -1) + images.shape[1:])
         labels = labels.reshape((1, split_into, -1) + labels.shape[1:])

@@ -18,7 +18,7 @@ config_flags.DEFINE_config_file(
     'File path to the training or sampling hyperparameter configuration.',
     lock_config=True)
 
-# flags.DEFINE_string("workdir", None, "Work unit directory.")
+flags.DEFINE_string("workdir", None, "Work unit directory.")
 # flags.DEFINE_string("wandb_artifact", None, "the wandb artifact reference for logged model")
 flags.DEFINE_string("mode", "train", "Running mode: train or sample")
 
@@ -30,10 +30,10 @@ def main(argv):
   logging.info('JAX local devices: %r', jax.local_devices())
 
   if FLAGS.mode == "train":
-      train.train(FLAGS.config)
+      train.train(FLAGS.config, FLAGS.workdir)
   else:
       raise ValueError(f"Mode {FLAGS.mode} not recognized.")
 
 if __name__ == '__main__':
-  # flags.mark_flags_as_required(['config', 'workdir'])
+  flags.mark_flags_as_required(['config', 'workdir'])
   app.run(main)

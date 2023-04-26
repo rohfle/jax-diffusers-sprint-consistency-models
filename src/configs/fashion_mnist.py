@@ -11,9 +11,9 @@ def get_config():
   wandb.project = "hfjs-consistency-fashion-mnist"  # required filed if use W&B logging
   wandb.job_type = "training"
   wandb.name = None # run name, optional
-  wandb.log_train = True # log training metrics
-  wandb.log_sample = True # log generated samples to W&B
-  wandb.log_model = True # log final model checkpoint as W&B artifact
+  wandb.log_train = False # log training metrics
+  wandb.log_sample = False # log generated samples to W&B
+  wandb.log_model = False # log final model checkpoint as W&B artifact
 
 
   # training
@@ -22,7 +22,7 @@ def get_config():
   training.loss_type = 'mse'
   training.half_precision = True
   training.save_and_sample_every = 1000
-  training.num_sample = 64
+  training.num_samples = 64
   training.epsilon = 0.002
   training.N = 150
 

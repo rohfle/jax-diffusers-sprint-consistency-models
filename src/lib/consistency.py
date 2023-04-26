@@ -36,7 +36,7 @@ def sigmas_karras(n_ramp : jax.Array, sigma_min=0.002, sigma_max=80., rho=7.) ->
 
 
 # this is adding some non linear noise to fun
-def ct_sample(rng, x0, N, N_ramp):
+def consistency_training(rng, x0, N, N_ramp):
     # image = x0
     # noise = z
     noise_sched = sigmas_karras(N_ramp)
@@ -60,3 +60,16 @@ def model_wrapper(apply_fn, epsilon):
         return c_skip * x + c_out * apply_fn(params, x, sigma.squeeze())
     return apply
 
+
+def sample(rng, config, state, shape):
+    SIGS = TIMESTEPS = [2.5, 5.0, 10.0, 20.0, 40.0]
+    rng, rng_loop = jax.random.split(rng)
+    x = jax.random.normal(rng_loop, shape)
+    x = state.apply_fn(state.params, x, TIMESTEPS[0])
+    for sig in TIMESTEPS[1:]:
+        rng, rng_loop = jax.random.split(rng)
+        z = jax.random.normal(rng_loop, shape)
+        x = x + jnp.sqrt(sig ** 2 - config.training.epsilon ** 2) * z
+        sig = jnp.broadcast_to(sig, (len(x), 1, 1, 1))
+        x = state.apply_fn(state.params, x, sig)
+    return (x + 1) * 0.5

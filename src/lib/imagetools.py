@@ -4,14 +4,8 @@ from PIL import Image
 
 
 def make_grid(samples, n_samples, padding=2, pad_value=0.0):
-    ndarray = samples.reshape((-1, *samples.shape[2:]))[:n_samples]
+    ndarray = samples.reshape((-1, *samples.shape[-3:]))[:n_samples]
     nrow = int(jnp.sqrt(ndarray.shape[0]))
-
-    if not (isinstance(ndarray, jnp.ndarray) or
-            (isinstance(ndarray, list) and
-            all(isinstance(t, jnp.ndarray) for t in ndarray))):
-        raise TypeError("array_like of tensors expected, got {}".format(
-            type(ndarray)))
 
     ndarray = jnp.asarray(ndarray)
 

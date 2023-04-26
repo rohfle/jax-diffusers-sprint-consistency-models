@@ -9,8 +9,8 @@ from jax import numpy as jnp
 from ml_collections import ConfigDict
 import jax
 
+from . import consistency
 from . import imagetools
-from . import sampling
 
 
 def wandb_log_image(samples_array, step):
@@ -70,35 +70,34 @@ def training_logger(config, writer, use_wandb):
     return inner
 
 
-def sample_logger(config, workdir, p_sample_step, num_samples):
+def sample_logger(config, workdir):
     sample_dir = os.path.join(workdir, 'samples')
-    os.makedirs(exist_ok=True)
+    os.makedirs(sample_dir, exist_ok=True)
 
     @functools.wraps
     def inner(rng, step, state, batch):
         if (step + 1) % config.training.save_and_sample_every != 0:
             return
         logging.info(f'generating samples....')
-        samples = sample(rng, config, state, batch, p_sample_step, num_samples)
-        samples_array = imagetools.make_grid(samples, num_samples)
+        samples = sample_many(rng, config, state, batch, config.training.num_samples)
+        samples_array = imagetools.make_grid(samples, config.training.num_samples)
         sample_path = os.path.join(sample_dir, f'iter_{step + 1}_host_{jax.process_index()}.png')
-        imagetools.save_image(samples, sample_path)
+        imagetools.save_image(samples_array, sample_path)
         if config.wandb.log_sample:
             wandb_log_image(samples_array, step + 1)
 
     return inner
 
 
-def sample(rng, config, state, batch, p_sample_step, num_samples):
+def sample_many(rng, config, state, batch, num_samples):
     samples = []
     for i in trange(num_samples):
         rng, sample_rng = jax.random.split(rng)
-        sample = sampling.sample_loop(
+        sample = consistency.sample(
             sample_rng,
             config,
             state,
             tuple(batch['image'].shape),
-            p_sample_step
         )
         samples.append(sample)
     return jnp.concatenate(samples)

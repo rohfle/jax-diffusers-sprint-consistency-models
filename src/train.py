@@ -1,4 +1,3 @@
-import functools
 import logging
 import time
 import jax
@@ -69,7 +68,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
 
 def train_step(rng, state, batch, pmap_axis='batch'):
     x0 = batch
-    batch_t_ema, batch_t = consistency.ct_sample(rng, x0, state.N, state.N_ramp)
+    batch_t_ema, batch_t = consistency.consistency_training(rng, x0, state.N, state.N_ramp)
     preds_ema = state.apply_fn({'params': state.ema_params}, batch_t_ema[0], batch_t_ema[1])
 
     def compute_loss(params):
@@ -107,7 +106,7 @@ def train(config: ml_collections.ConfigDict,
         training_logger = monitoring.training_logger(config, writer, first_jax_process)
     sample_logger = None
     if config.training.get('save_and_sample_every'):
-        sample_logger = monitoring.sample_logger(config, workdir, consistency.p_sample_step)
+        sample_logger = monitoring.sample_logger(config, workdir)
     profile_logger = None
     if first_jax_process:
         profile_logger = periodic_actions.Profile(num_profile_steps=5, logdir=workdir)
@@ -157,7 +156,7 @@ def train(config: ml_collections.ConfigDict,
 
             if sample_logger:
                 rng, sample_rng = jax.random.split(rng)
-                sample_logger(sample_rng, step, config.training.num_sample)
+                sample_logger(sample_rng, step, state, batch)
 
             # TODO: save a checkpoint periodically
 
