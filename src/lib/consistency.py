@@ -61,6 +61,7 @@ def model_wrapper(apply_fn, epsilon):
     return apply
 
 
+@jax.jit
 def sample(rng, epsilon, state, shape):
     SIGS = TIMESTEPS = [2.5, 5.0, 10.0, 20.0, 40.0]
     rng, rng_loop = jax.random.split(rng)

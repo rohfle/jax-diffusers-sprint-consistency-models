@@ -87,7 +87,10 @@ def sample_many(rng, config, state, batch, num_samples):
     samples = []
     state = jax_utils.unreplicate(state)
     shape = batch['image'][0].shape
-    for i in trange(num_samples):
+    # divide required samples by batch size
+    runs = (num_samples - 1) // shape[0] + 1
+
+    for i in trange(runs):
         rng, sample_rng = jax.random.split(rng)
         sample_rng = jnp.asarray(sample_rng)
         sample = consistency.sample(
