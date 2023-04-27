@@ -10,6 +10,7 @@ from flax import jax_utils
 from clu import metric_writers
 from clu import periodic_actions
 
+from lib import checkpoints
 from lib import monitoring
 from lib import consistency
 from lib.state import TrainState
@@ -125,9 +126,10 @@ def train(config: ml_collections.ConfigDict,
     rng, state_rng = jax.random.split(rng)
     # create initial train state
     state = create_train_state(state_rng, config)
+    state = checkpoints.restore(state, workdir)
     state = jax_utils.replicate(state)
 
-    step_offset = 0  # dont know what this is
+    step_offset = int(state.step)
     # start training
     logging.info('Initial compilation, this might take some minutes...')
     for epoch in range(config.training.num_epochs):
@@ -135,6 +137,8 @@ def train(config: ml_collections.ConfigDict,
             ds_train.set_epoch(epoch)  # randomize the batches
         pbar = tqdm(ds_train)
         for step, batch in enumerate(pbar):
+            if step < step_offset:
+                continue
             step_start_time = time.time()
             pbar.set_description('Training...')
             state = consistency.update_N(state, epoch, config.training.num_epochs)
@@ -160,7 +164,7 @@ def train(config: ml_collections.ConfigDict,
                 rng, sample_rng = jax.random.split(rng)
                 sample_logger(sample_rng, step, state, batch)
 
-            # TODO: save a checkpoint periodically
+            checkpoints.save(state, workdir)
 
     # Wait until computations are done before exiting
     jax.random.normal(jax.random.PRNGKey(0), ()).block_until_ready()

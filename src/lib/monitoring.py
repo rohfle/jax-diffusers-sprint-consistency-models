@@ -75,7 +75,7 @@ def sample_logger(config, sample_dir):
         logging.info(f'generating samples....')
         samples = sample_many(rng, config, state, batch, config.training.num_samples)
         samples_array = imagetools.make_grid(samples, config.training.num_samples)
-        sample_path = os.path.join(sample_dir, f'iter_{step + 1}_host_{jax.process_index()}.png')
+        sample_path = os.path.join(sample_dir, f'iter_{(step + 1):04}_host_{jax.process_index()}.png')
         imagetools.save_image(samples_array, sample_path)
         if config.wandb.log_sample:
             wandb_log_image(samples_array, step + 1)
