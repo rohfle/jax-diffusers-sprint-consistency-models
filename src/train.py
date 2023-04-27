@@ -127,9 +127,9 @@ def train(config: ml_collections.ConfigDict,
     # create initial train state
     state = create_train_state(state_rng, config)
     state = checkpoints.restore(state, workdir)
-    state = jax_utils.replicate(state)
-
     step_offset = int(state.step)
+
+    state = jax_utils.replicate(state)
     # start training
     logging.info('Initial compilation, this might take some minutes...')
     for epoch in range(config.training.num_epochs):
