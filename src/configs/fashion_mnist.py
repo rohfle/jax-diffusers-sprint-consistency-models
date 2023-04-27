@@ -18,7 +18,7 @@ def get_config():
 
   # training
   config.training = training = ml_collections.ConfigDict()
-  training.num_epochs = 10
+  training.num_epochs = 10000
   training.loss_type = 'mse'
   training.half_precision = True
   training.log_every_steps = 10
