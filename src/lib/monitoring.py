@@ -45,27 +45,25 @@ def setup_wandb(config):
 
 
 def training_logger(config, writer, use_wandb):
-    def inner(step, train_metrics, last_log_time):
+    def inner(step, metrics, step_start_time):
         if (step + 1) % config.training.log_every_steps != 0:
-            return train_metrics, False
+            return
         # time to log some stuff
         summary = {
             f'train/{k}': v
-            for k, v in jax.tree_map(lambda x: x.mean(), train_metrics).items()
+            for k, v in jax.tree_map(lambda x: x.mean(), metrics).items()
         }
-        summary['time/seconds_per_step'] =  (time.time() - last_log_time) / config.training.log_every_steps
+        summary['time/seconds_per_step'] =  (time.time() - step_start_time)
         # write to disk
         if writer is not None:
             writer.write_scalars(step + 1, summary)
         # write to wandb
         if use_wandb and config.wandb.log_train:
             wandb.log({
-                'train/step': step,
+                'train/step': step + 1,
                 **summary,
             })
-        train_metrics = []
-        last_log_time = time.time()
-        return train_metrics, last_log_time
+        return
     return inner
 
 

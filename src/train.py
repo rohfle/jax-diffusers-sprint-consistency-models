@@ -126,9 +126,8 @@ def train(config: ml_collections.ConfigDict,
     state = jax_utils.replicate(state)
 
     step_offset = 0  # dont know what this is
-    train_metrics = []
 
-    last_logged_at = time.time()
+
     # start training
     logging.info('Initial compilation, this might take some minutes...')
     for epoch in range(config.training.num_epochs):
@@ -136,6 +135,7 @@ def train(config: ml_collections.ConfigDict,
             ds_train.set_epoch(epoch)  # randomize the batches
         pbar = tqdm(ds_train)
         for step, batch in enumerate(pbar):
+            step_start_time = time.time()
             pbar.set_description('Training...')
             state = consistency.update_N(state, epoch, config.training.num_epochs)
             rng, *train_step_rng = jax.random.split(rng, num=local_device_count + 1)
@@ -154,8 +154,7 @@ def train(config: ml_collections.ConfigDict,
                 profile_logger(step)
 
             if training_logger:
-                train_metrics += [metrics]
-                train_metrics, last_logged_at = training_logger(step, train_metrics, last_logged_at)
+                training_logger(step, metrics, step_start_time)
 
             if sample_logger:
                 rng, sample_rng = jax.random.split(rng)
