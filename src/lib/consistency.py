@@ -65,12 +65,12 @@ def sample(rng, epsilon, state, shape):
     SIGS = TIMESTEPS = [2.5, 5.0, 10.0, 20.0, 40.0]
     rng, rng_loop = jax.random.split(rng)
     x = jax.random.normal(rng_loop, shape)
-    sig = jnp.broadcast_to(TIMESTEPS[0], (len(x), 1, 1, 1))
+    sig = jnp.broadcast_to(TIMESTEPS[0], (1, 1, 1, 1))
     x = state.apply_fn({'params': state.params}, x, sig)
     for sig in TIMESTEPS[1:]:
         rng, rng_loop = jax.random.split(rng)
         z = jax.random.normal(rng_loop, shape)
         x = x + jnp.sqrt(sig ** 2 - epsilon ** 2) * z
-        sig = jnp.broadcast_to(sig, (len(x), 1, 1, 1))
+        sig = jnp.broadcast_to(sig, (1, 1, 1, 1))
         x = state.apply_fn({'params': state.params}, x, sig)
     return (x + 1) * 0.5

@@ -85,7 +85,7 @@ def sample_logger(config, sample_dir):
 
 def sample_many(rng, config, state, batch, num_samples):
     samples = []
-    shape = batch['image'].shape
+    shape = batch['image'][0].shape
     for i in trange(num_samples):
         rng, sample_rng = jax.random.split(rng)
         sample_rng = jnp.asarray(sample_rng)
