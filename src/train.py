@@ -128,7 +128,7 @@ def train(config: ml_collections.ConfigDict,
     state = create_train_state(state_rng, config)
     state = checkpoints.restore(state, workdir)
     step_offset = int(state.step)
-    total_step = 0
+    step = 0
 
     state = jax_utils.replicate(state)
     # start training
@@ -137,9 +137,9 @@ def train(config: ml_collections.ConfigDict,
         if config.data.use_streaming:
             ds_train.set_epoch(epoch)  # randomize the batches
         pbar = tqdm(ds_train)
-        for step, batch in enumerate(pbar):
-            total_step += 1
-            if total_step < step_offset:
+        for batch in pbar:
+            step += 1
+            if step < step_offset:
                 continue
             step_start_time = time.time()
             pbar.set_description('Training...')
@@ -148,7 +148,7 @@ def train(config: ml_collections.ConfigDict,
             train_step_rng = jnp.asarray(train_step_rng)
             state, metrics = p_train_step(train_step_rng, state, batch['image'])
             # TODO: profile
-            if total_step == step_offset:
+            if step == step_offset:
                 logging.info('Initial compilation completed.')
                 logging.info(f"Number of devices: {batch['image'].shape[0]}")
                 logging.info(f"Batch size per device {batch['image'].shape[1]}")
