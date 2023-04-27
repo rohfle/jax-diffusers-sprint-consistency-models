@@ -6,6 +6,7 @@ import jax
 import wandb
 from tqdm import trange
 from jax import numpy as jnp
+from flax import jax_utils
 from ml_collections import ConfigDict
 import jax
 
@@ -84,13 +85,15 @@ def sample_logger(config, sample_dir):
 
 def sample_many(rng, config, state, batch, num_samples):
     samples = []
+    shape = batch['image'].shape
     for i in trange(num_samples):
         rng, sample_rng = jax.random.split(rng)
+        sample_rng = jnp.asarray(sample_rng)
         sample = consistency.sample(
             sample_rng,
-            config,
+            config.training.epsilon,
             state,
-            tuple(batch['image'].shape),
+            shape,
         )
         samples.append(sample)
     return jnp.concatenate(samples)

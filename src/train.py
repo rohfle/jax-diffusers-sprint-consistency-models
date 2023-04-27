@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from copy import deepcopy
 import jax
 import jax.numpy as jnp
 import ml_collections
@@ -53,6 +54,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
 
     rng, rng_params = jax.random.split(rng)
     params = init_model(rng_params, config.data.image_size, config.data.channels, model)
+    ema_params = deepcopy(params)  # probably not necessary
     tx = create_optimizer(config.optim)
     loss_fn = get_loss_function(config.training.loss_type)
     apply_fn = consistency.model_wrapper(model.apply, config.training.epsilon)
@@ -62,7 +64,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
         params=params,
         tx=tx,
         loss_fn=loss_fn,
-        ema_params=params,
+        ema_params=ema_params,
         N=config.training.N,)
     return state
 
@@ -126,8 +128,6 @@ def train(config: ml_collections.ConfigDict,
     state = jax_utils.replicate(state)
 
     step_offset = 0  # dont know what this is
-
-
     # start training
     logging.info('Initial compilation, this might take some minutes...')
     for epoch in range(config.training.num_epochs):
