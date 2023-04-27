@@ -9,13 +9,14 @@ from jax import numpy as jnp
 from flax import jax_utils
 from ml_collections import ConfigDict
 import jax
+import numpy as np
 
 from . import consistency
 from . import imagetools
 
 
-def wandb_log_image(samples_array, step):
-    sample_images = wandb.Image(samples_array, caption=f"step {step}")
+def wandb_log_image(image, step):
+    sample_images = wandb.Image(image, caption=f"step {step}")
     wandb.log({'samples': sample_images })
 
 
@@ -76,9 +77,9 @@ def sample_logger(config, sample_dir):
         samples = sample_many(rng, config, state, batch, config.training.num_samples)
         samples_array = imagetools.make_grid(samples, config.training.num_samples)
         sample_path = os.path.join(sample_dir, f'iter_{(step + 1):04}_host_{jax.process_index()}.png')
-        imagetools.save_image(samples_array, sample_path)
+        image = imagetools.save_image(samples_array, sample_path)
         if config.wandb.log_sample:
-            wandb_log_image(samples_array, step + 1)
+            wandb_log_image(image, step + 1)
 
     return inner
 

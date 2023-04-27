@@ -38,3 +38,4 @@ def save_image(grid, path):
     ndarr = np.array(ndarr)
     im = Image.fromarray(ndarr)
     im.save(path)
+    return im
