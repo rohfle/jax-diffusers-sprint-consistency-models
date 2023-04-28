@@ -48,10 +48,10 @@ def crop_resize_bulk(images, resolution):
 
 def crop_resize(image : Image, resolution):
     '''Resize and crop image to fill a square'''
+    width, height = image.size
     if width == resolution and height == resolution:
         return image
     box = None
-    width, height = image.size
     # left, top, right, bottom
     if width != height:
         crop = min(width, height)
