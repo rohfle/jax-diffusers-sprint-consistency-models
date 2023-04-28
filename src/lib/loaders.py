@@ -27,7 +27,7 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
     def transform_and_collate(batch):
         # make sure the result is always divisible by split_into
         # even if it means dropping images
-        max_idx = len(batch['images']) // split_into * split_into
+        max_idx = len(batch['image']) // split_into * split_into
         images = imagetools.crop_resize_bulk(batch['image'][:max_idx], config.data.image_size - 4)
         images = np.stack(images)  # stack all the images into one giant array
         # TODO: look at JIT / JAX optimization for image manipulation
