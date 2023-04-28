@@ -5,3 +5,5 @@ __pycache__
 OLD/
 /repositories
 /workdir
+/runs
+/wandb
