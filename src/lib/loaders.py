@@ -25,7 +25,10 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
     dataset = dataset.with_format('jax')
 
     def transform_and_collate(batch):
-        images = imagetools.crop_resize_bulk(batch['image'], config.data.image_size - 4)
+        # make sure the result is always divisible by split_into
+        # even if it means dropping images
+        max_idx = len(batch['images']) // split_into * split_into
+        images = imagetools.crop_resize_bulk(batch['image'][:max_idx], config.data.image_size - 4)
         images = np.stack(images)  # stack all the images into one giant array
         # TODO: look at JIT / JAX optimization for image manipulation
         images = images.reshape(*images.shape[:3], -1)  # to allow for grayscale 1 channel images
@@ -39,7 +42,7 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
         }
 
         if 'label' in batch:
-            labels = jnp.array(batch['label'])
+            labels = jnp.array(batch['label'][:max_idx])
             result['label'] = labels.reshape((1, split_into, -1) + labels.shape[1:])
 
         return result
