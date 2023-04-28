@@ -5,6 +5,8 @@ import ml_collections
 from flax import jax_utils
 from datasets import load_dataset
 
+from . import imagetools
+
 def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
     batch_size = config.data.batch_size
     if batch_size % split_into != 0:
@@ -22,7 +24,8 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
     dataset = dataset.with_format('jax')
 
     def transform_and_collate(batch):
-        images = np.stack(batch['image'])  # stack all the images into one giant array
+        images = imagetools.crop_resize_bulk(batch['image'], config.data.image_size)
+        images = np.stack(images)  # stack all the images into one giant array
         # TODO: look at JIT / JAX optimization for image manipulation
         images = images.reshape(*images.shape[:3], -1)  # to allow for grayscale 1 channel images
         images = images / 255  # range 0.0 to 1.0

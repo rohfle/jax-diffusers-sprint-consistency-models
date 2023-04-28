@@ -1,6 +1,7 @@
 from jax import numpy as jnp
 import numpy as np
 from PIL import Image
+from PIL.Image import Resampling
 
 
 def make_grid(samples, n_samples, padding=2, pad_value=0.0):
@@ -39,3 +40,26 @@ def save_image(grid, path):
     im = Image.fromarray(ndarr)
     im.save(path)
     return im
+
+
+def crop_resize_bulk(images, resolution):
+    return [crop_resize(im, resolution) for im in images]
+
+
+def crop_resize(image : Image, resolution):
+    '''Resize and crop image to fill a square'''
+    box = None
+    width, height = image.size
+    # left, top, right, bottom
+    if width != height:
+        crop = min(width, height)
+        left = (width - crop) // 2
+        top = (height - crop) // 2
+        right = (width + crop) // 2
+        bottom = (height + crop) // 2
+        box = (left, top, right, bottom)
+    return image.resize(
+        (resolution, resolution),
+        resample=Resampling.BICUBIC,
+        box=box,
+    )
