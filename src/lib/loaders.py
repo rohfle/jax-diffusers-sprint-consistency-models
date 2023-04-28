@@ -20,7 +20,8 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
     else:
         dataset = load_dataset(config.data.dataset).shuffle(seed=42)
         dataset['train'] = dataset['train'].flatten_indices()
-        dataset['test'] = dataset['test'].flatten_indices()
+        if 'test' in dataset:
+            dataset['test'] = dataset['test'].flatten_indices()
     dataset = dataset.with_format('jax')
 
     def transform_and_collate(batch):
@@ -43,5 +44,8 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
         }
 
     ds_train = dataset['train'].map(transform_and_collate, batched=True, batch_size=config.data.batch_size, drop_last_batch=True)
-    ds_valid = dataset['test'].map(transform_and_collate, batched=True, batch_size=config.data.batch_size, drop_last_batch=True)
+    if 'test' in dataset:
+        ds_valid = dataset['test'].map(transform_and_collate, batched=True, batch_size=config.data.batch_size, drop_last_batch=True)
+    else:
+        ds_valid = None
     return ds_train, ds_valid
