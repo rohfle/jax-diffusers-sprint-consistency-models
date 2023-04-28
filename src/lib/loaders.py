@@ -32,16 +32,17 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
         images = images / 255  # range 0.0 to 1.0
         images = np.pad(images, [[0], [2], [2], [0]])  # add padding to width and height
         images = jnp.array(images) * 2 - 1  # output range will be -1.0 to 1.0
-        labels = jnp.array(batch['label'])
-        # reshape in a way that supports pmap
-        images = images.reshape((1, split_into, -1) + images.shape[1:])
-        labels = labels.reshape((1, split_into, -1) + labels.shape[1:])
 
-        return {
-            # by wrapping with a list here, its possible to keep the batch all together
-            'image': images,
-            'label': labels,
+        # reshape in a way that supports pmap
+        result = {
+            'image': images.reshape((1, split_into, -1) + images.shape[1:])
         }
+
+        if 'label' in batch:
+            labels = jnp.array(batch['label'])
+            result['label'] = labels.reshape((1, split_into, -1) + labels.shape[1:])
+
+        return result
 
     ds_train = dataset['train'].map(transform_and_collate, batched=True, batch_size=config.data.batch_size, drop_last_batch=True)
     if 'test' in dataset:
