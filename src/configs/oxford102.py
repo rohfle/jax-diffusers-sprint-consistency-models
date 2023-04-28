@@ -40,7 +40,7 @@ def get_config():
 
   # data
   config.data = data = ml_collections.ConfigDict()
-  data.dataset ='oxford_flowers102'
+  data.dataset ='huggan/flowers-102-categories'
   data.batch_size = 64 * 4
   data.cache = False
   data.image_size = 128
