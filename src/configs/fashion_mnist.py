@@ -43,7 +43,7 @@ def get_config():
   data.batch_size = 64 * 4
   data.channels = 1
   data.dataset = 'fashion_mnist'
-  data.image_size = 28
+  data.image_size = 32
   data.shuffle_buffer_size = 10000
   data.use_streaming = True
 

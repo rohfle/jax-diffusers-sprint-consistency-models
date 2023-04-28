@@ -25,7 +25,7 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
     dataset = dataset.with_format('jax')
 
     def transform_and_collate(batch):
-        images = imagetools.crop_resize_bulk(batch['image'], config.data.image_size)
+        images = imagetools.crop_resize_bulk(batch['image'], config.data.image_size - 4)
         images = np.stack(images)  # stack all the images into one giant array
         # TODO: look at JIT / JAX optimization for image manipulation
         images = images.reshape(*images.shape[:3], -1)  # to allow for grayscale 1 channel images
