@@ -30,7 +30,8 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
         max_idx = len(batch['image']) // split_into * split_into
         images = batch['image'][:max_idx]
         images_resized = imagetools.crop_resize_bulk(images, config.data.image_size - 4)
-        images = imagetools.stack_ensure_channels(images_resized, config.data.channels)
+        images = imagetools.ensure_channels(images_resized, config.data.channels)
+        images = np.stack(images)
         # close images to stop memory leak
         [im.close() for im in batch['image']]
         [im.close() for im in images_resized]

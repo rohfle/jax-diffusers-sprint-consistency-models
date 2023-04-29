@@ -67,7 +67,7 @@ def crop_resize(image : Image, resolution):
     )
 
 
-def stack_ensure_channels(images, channels):
+def ensure_channels(images, channels):
     output = []
     for image in images:
         im = np.asarray(image)
@@ -80,4 +80,4 @@ def stack_ensure_channels(images, channels):
             im = im[:, :, :channels]  # drop the alpha
         assert(im.shape[2] == channels, 'unhandled {} -> {} channels transform'.format(im.shape[2], channels))
         output += [im]
-    return np.stack(output)
+    return output
