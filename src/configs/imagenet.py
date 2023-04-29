@@ -8,7 +8,7 @@ def get_config():
   # wandb
   config.wandb = wandb = ml_collections.ConfigDict()
   wandb.entity = "hfjs-consistency"
-  wandb.project = "hfjs-consistency-flower102"
+  wandb.project = "hfjs-consistency-imagenet-1k"
   wandb.job_type = "training"
   wandb.name = None
   wandb.log_train = True
@@ -40,7 +40,7 @@ def get_config():
 
   # data
   config.data = data = ml_collections.ConfigDict()
-  data.dataset ='huggan/flowers-102-categories'
+  data.dataset ='imagenet-1k'
   data.batch_size = 64 * 4
   data.cache = False
   data.image_size = 128
