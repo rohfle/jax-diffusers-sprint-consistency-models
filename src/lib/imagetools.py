@@ -65,3 +65,17 @@ def crop_resize(image : Image, resolution):
         resample=Resampling.BICUBIC,
         box=box,
     )
+
+
+def stack_ensure_channels(images, channels):
+    output = []
+    for image in images:
+        im = np.asarray(image)
+        # ensure channel axis
+        im = im.reshape(im.shape[:2], -1)
+        if im.shape[2] == 1 and channels != 1:
+            # handle grayscale to rgb
+            im = im.repeat(channels, axis=2)
+        # TODO: handle RGB -> RGBA?
+        output += [im]
+    return np.stack(output)

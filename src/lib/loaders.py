@@ -28,10 +28,13 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
         # make sure the result is always divisible by split_into
         # even if it means dropping images
         max_idx = len(batch['image']) // split_into * split_into
-        images = imagetools.crop_resize_bulk(batch['image'][:max_idx], config.data.image_size - 4)
-        images = np.stack(images)  # stack all the images into one giant array
-        # TODO: look at JIT / JAX optimization for image manipulation
-        images = images.reshape(*images.shape[:3], -1)  # to allow for grayscale 1 channel images
+        images = batch['image'][:max_idx]
+        images_resized = imagetools.crop_resize_bulk(images, config.data.image_size - 4)
+        images = imagetools.stack_ensure_channels(images_resized, config.data.channels)
+        # close images to stop memory leak
+        [im.close() for im in batch['image']]
+        [im.close() for im in images_resized]
+        # translate image values
         images = images / 255  # range 0.0 to 1.0
         images = np.pad(images, [[0], [2], [2], [0]])  # add padding to width and height
         images = jnp.array(images) * 2 - 1  # output range will be -1.0 to 1.0
