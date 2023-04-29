@@ -76,6 +76,8 @@ def stack_ensure_channels(images, channels):
         if im.shape[2] == 1 and channels != 1:
             # handle grayscale to rgb
             im = im.repeat(channels, axis=2)
-        # TODO: handle RGB -> RGBA?
+        if im.shape[2] == 4 and channels == 3:
+            im = im[:, :, :channels]  # drop the alpha
+        assert(im.shape[2] == channels, 'unhandled {} -> {} channels transform'.format(im.shape[2], channels))
         output += [im]
     return np.stack(output)
