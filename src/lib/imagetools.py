@@ -72,7 +72,7 @@ def stack_ensure_channels(images, channels):
     for image in images:
         im = np.asarray(image)
         # ensure channel axis
-        im = im.reshape(im.shape[:2], -1)
+        im = im.reshape(*im.shape[:2], -1)
         if im.shape[2] == 1 and channels != 1:
             # handle grayscale to rgb
             im = im.repeat(channels, axis=2)
