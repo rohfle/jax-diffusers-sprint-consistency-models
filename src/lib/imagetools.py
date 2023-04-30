@@ -2,6 +2,8 @@ from jax import numpy as jnp
 import numpy as np
 from PIL import Image
 from PIL.Image import Resampling
+import jax
+from functools import partial
 
 
 def make_grid(samples, n_samples, padding=2, pad_value=0.0):
@@ -42,42 +44,47 @@ def save_image(grid, path):
     return im
 
 
-def crop_resize_bulk(images, resolution):
-    return [crop_resize(im, resolution) for im in images]
+@partial(jax.jit, static_argnums=1)
+def ensure_channels(image, channels : int):
+    # ensure channel axis
+    image = image.reshape(*image.shape[:2], -1)
+    shape = image.shape
+    if shape[2] == 1 and channels != 1:
+        # handle grayscale to rgb
+        image = image.repeat(channels, axis=2)
+    if shape[2] == 4 and channels == 3:
+        image = image[:, :, :channels]  # drop the alpha
+    if shape[2] == 3 and channels == 4:
+        image = jnp.concatenate((image, jnp.full((*shape[:2], 1), 255)), axis=2) # add an alpha channel
+    return image
 
 
-def crop_resize(image : Image, resolution):
+@partial(jax.jit, static_argnums=1)
+def crop_resize(image, resolution):
     '''Resize and crop image to fill a square'''
-    width, height = image.size
+    width, height = image.shape[:2]
     if width == resolution and height == resolution:
         return image
-    box = None
     # left, top, right, bottom
     if width != height:
-        crop = min(width, height)
+        crop = jnp.minimum(width, height)
         left = (width - crop) // 2
         top = (height - crop) // 2
         right = (width + crop) // 2
         bottom = (height + crop) // 2
-        box = (left, top, right, bottom)
-    return image.resize(
-        (resolution, resolution),
-        resample=Resampling.BICUBIC,
-        box=box,
-    )
+        image = image[top:bottom, left:right, :]
+    return jax.image.resize(image, (resolution, resolution, image.shape[-1]), 'bicubic')
 
 
-def ensure_channels(images, channels):
+@partial(jax.jit, static_argnums=(1, 2, 3))
+def normalize_images(images, channels, resolution, pad):
     output = []
-    for image in images:
-        im = np.asarray(image)
-        # ensure channel axis
-        im = im.reshape(*im.shape[:2], -1)
-        if im.shape[2] == 1 and channels != 1:
-            # handle grayscale to rgb
-            im = im.repeat(channels, axis=2)
-        if im.shape[2] == 4 and channels == 3:
-            im = im[:, :, :channels]  # drop the alpha
-        assert(im.shape[2] == channels, 'unhandled {} -> {} channels transform'.format(im.shape[2], channels))
+    for im in images:
+        im = ensure_channels(im, channels)
+        im = crop_resize(im, resolution - 2 * pad)
         output += [im]
-    return output
+
+    stack = jnp.stack(output)
+    stack = jnp.pad(stack, [(0,0), (pad,pad), (pad,pad), (0,0)])
+    stack = stack * 2 / 255 - 1
+    return stack

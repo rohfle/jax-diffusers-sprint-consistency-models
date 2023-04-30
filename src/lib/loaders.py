@@ -28,17 +28,14 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
         # make sure the result is always divisible by split_into
         # even if it means dropping images
         max_idx = len(batch['image']) // split_into * split_into
-        images = batch['image'][:max_idx]
-        images_resized = imagetools.crop_resize_bulk(images, config.data.image_size - 4)
-        images = imagetools.ensure_channels(images_resized, config.data.channels)
-        images = np.stack(images)
-        # close images to stop memory leak
-        [im.close() for im in batch['image']]
-        [im.close() for im in images_resized]
-        # translate image values
-        images = images / 255  # range 0.0 to 1.0
-        images = np.pad(images, [[0], [2], [2], [0]])  # add padding to width and height
-        images = jnp.array(images) * 2 - 1  # output range will be -1.0 to 1.0
+        images = [jnp.asarray(im, dtype=jnp.bfloat16) for im in batch['image'][:max_idx]]
+
+        images = imagetools.normalize_images(
+            images,
+            config.data.channels,
+            config.data.image_size,
+            2,  # pad
+        )
 
         # reshape in a way that supports pmap
         result = {
