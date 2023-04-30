@@ -12,18 +12,13 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
     if batch_size % split_into != 0:
         raise ValueError('Batch size must be divisible by the number of sub batches')
 
-    if config.data.use_streaming:
-        dataset = load_dataset(config.data.dataset, streaming=True).shuffle(
-            seed=42, # rng currently not working
-            buffer_size=config.data.shuffle_buffer_size
-        )
-    else:
-        dataset = load_dataset(config.data.dataset).shuffle(seed=42)
-        dataset['train'] = dataset['train'].flatten_indices()
-        if 'test' in dataset:
-            dataset['test'] = dataset['test'].flatten_indices()
-    dataset = dataset.with_format('jax')
+    dataset = load_dataset(config.data.dataset, streaming=True).shuffle(
+        seed=42, # rng currently not working
+        buffer_size=config.data.shuffle_buffer_size
+    ).with_format('jax')
 
+    # TODO: rewrite as a class?
+    # have a skip variable that skips n records to prevent unnecessary processing
     def transform_and_collate(batch):
         # make sure the result is always divisible by split_into
         # even if it means dropping images

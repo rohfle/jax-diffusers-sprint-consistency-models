@@ -54,7 +54,8 @@ def consistency_training(rng, x0, N, N_ramp):
     return new_ema_batch, new_batch
 
 
-def model_wrapper(apply_fn, epsilon):
+def model(apply_fn, epsilon):
+    """Consistency model as a wrapper for .apply"""
     def apply(params, x, sigma):
         c_skip, c_out, c_in = scalings(sigma.reshape(-1,1,1,1), epsilon)
         return c_skip * x + c_out * apply_fn(params, x, sigma.squeeze())

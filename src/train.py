@@ -58,7 +58,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
     ema_params = deepcopy(params)  # probably not necessary
     tx = create_optimizer(config.optim)
     loss_fn = get_loss_function(config.training.loss_type)
-    apply_fn = consistency.model_wrapper(model.apply, config.training.epsilon)
+    apply_fn = consistency.model(model.apply, config.training.epsilon)
 
     state = TrainState.create(
         apply_fn=apply_fn,
@@ -134,8 +134,7 @@ def train(config: ml_collections.ConfigDict,
     # start training
     logging.info('Initial compilation, this might take some minutes...')
     for epoch in range(config.training.num_epochs):
-        if config.data.use_streaming:
-            ds_train.set_epoch(epoch)  # randomize the batches
+        ds_train.set_epoch(epoch)  # randomize the batches
         pbar = tqdm(ds_train)
         for batch in pbar:
             step += 1
