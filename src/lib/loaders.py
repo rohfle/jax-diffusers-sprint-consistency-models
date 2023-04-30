@@ -7,7 +7,47 @@ from datasets import load_dataset
 
 from . import imagetools
 
-def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
+
+class JAXImageTransform:
+    """Adds batch skipping to map functions"""
+    def __init__(self, config, skip_batches=0, split_into=1):
+        self.skip_batches = skip_batches
+        self.split_into = split_into
+        self.image_channels = config.data.channels
+        self.image_size = config.data.image_size
+        self.image_pad = 2
+
+    def __call__(self, batch):
+        if self.skip_batches > 0:
+            # gonna skip this batch, dont bother processing it
+            self.skip_batches -= 1
+            return batch
+
+        # make sure the result is always divisible by split_into
+        # even if it means dropping images
+        max_idx = len(batch['image']) // self.split_into * self.split_into
+        images = [jnp.asarray(im, dtype=jnp.bfloat16) for im in batch['image'][:max_idx]]
+
+        images = imagetools.normalize_images(
+            images,
+            self.image_channels,
+            self.image_size,
+            self.image_pad,
+        )
+
+        # reshape in a way that supports pmap
+        result = {
+            'image': images.reshape((1, self.split_into, -1) + images.shape[1:])
+        }
+
+        if 'label' in batch:
+            labels = jnp.array(batch['label'][:max_idx])
+            result['label'] = labels.reshape((1, self.split_into, -1) + labels.shape[1:])
+
+        return result
+
+
+def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1, skip_batches=0):
     batch_size = config.data.batch_size
     if batch_size % split_into != 0:
         raise ValueError('Batch size must be divisible by the number of sub batches')
@@ -17,35 +57,11 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1):
         buffer_size=config.data.shuffle_buffer_size
     ).with_format('jax')
 
-    # TODO: rewrite as a class?
-    # have a skip variable that skips n records to prevent unnecessary processing
-    def transform_and_collate(batch):
-        # make sure the result is always divisible by split_into
-        # even if it means dropping images
-        max_idx = len(batch['image']) // split_into * split_into
-        images = [jnp.asarray(im, dtype=jnp.bfloat16) for im in batch['image'][:max_idx]]
-
-        images = imagetools.normalize_images(
-            images,
-            config.data.channels,
-            config.data.image_size,
-            2,  # pad
-        )
-
-        # reshape in a way that supports pmap
-        result = {
-            'image': images.reshape((1, split_into, -1) + images.shape[1:])
-        }
-
-        if 'label' in batch:
-            labels = jnp.array(batch['label'][:max_idx])
-            result['label'] = labels.reshape((1, split_into, -1) + labels.shape[1:])
-
-        return result
-
-    ds_train = dataset['train'].map(transform_and_collate, batched=True, batch_size=config.data.batch_size, drop_last_batch=True)
+    image_transform = JAXImageTransform(config, skip_batches=skip_batches, split_into=split_into)
+    ds_train = dataset['train'].map(image_transform, batched=True, batch_size=config.data.batch_size, drop_last_batch=True)
     if 'test' in dataset:
-        ds_valid = dataset['test'].map(transform_and_collate, batched=True, batch_size=config.data.batch_size, drop_last_batch=True)
+        image_transform = JAXImageTransform(config, split_into=split_into)
+        ds_valid = dataset['test'].map(image_transform, batched=True, batch_size=config.data.batch_size, drop_last_batch=True)
     else:
         ds_valid = None
     return ds_train, ds_valid

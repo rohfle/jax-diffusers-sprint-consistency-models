@@ -129,6 +129,8 @@ def train(config: ml_collections.ConfigDict,
     state = checkpoints.restore(state, workdir)
     step_offset = int(state.step)
     step = 0
+    # load dataset
+    ds_train, ds_valid = get_dataset(d_rng, config, split_into=local_device_count, skip_batches=step_offset)
 
     state = jax_utils.replicate(state)
     # start training
