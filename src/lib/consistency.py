@@ -65,11 +65,11 @@ def distillation(rng, x0, state):
     x_t = x0 + t * z
     # DISTILLATION SPECIFIC
     # first step
-    teach_x = state.teacher_apply_fn({'params': state.teacher_params}, x_t, t)
+    teach_x = state.teacher_apply_fn({'params': state.teacher_params}, x_t, t.squeeze())
     d = (x_t - teach_x) / t   #  if teach_x were perfect, d would be z
     x_tmp = x_t + d * (t2 - t)
     # second step
-    teach_x2 = state.teacher_apply_fn({'params': state.teacher_params}, x_tmp, t2)
+    teach_x2 = state.teacher_apply_fn({'params': state.teacher_params}, x_tmp, t2.squeeze())
     d2 = (x_tmp - teach_x2) / t2
     x_t2 = x_t + (d + d2) * (t2 - t) / 2  # takes average of imperfect noise
     # END SPECIFIC
