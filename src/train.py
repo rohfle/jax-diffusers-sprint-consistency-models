@@ -79,7 +79,9 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
     apply_fn = consistency.model(model.apply, config.training.epsilon)
 
     if config.training.get('mode') == 'distill':
+        rng, rng_teach = jax.random.split(rng)
         teacher_model, teacher_params, hidden_states = load_teacher_model(
+            rng_teach,
             config.training.teacher_model,
             half_precision=config.training.half_precision)
         # hide the hidden states
