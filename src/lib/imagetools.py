@@ -44,6 +44,26 @@ def save_image(grid, path):
     return im
 
 
+def crop_resize(image : Image, resolution):
+    '''Resize and crop image to fill a square'''
+    width, height = image.size
+    if width == resolution and height == resolution:
+        return image
+    box = None
+    # left, top, right, bottom
+    if width != height:
+        crop = min(width, height)
+        left = (width - crop) // 2
+        top = (height - crop) // 2
+        right = (width + crop) // 2
+        bottom = (height + crop) // 2
+        box = (left, top, right, bottom)
+    return image.resize(
+        (resolution, resolution),
+        resample=Resampling.BICUBIC,
+        box=box)
+
+
 @partial(jax.jit, static_argnums=1)
 def ensure_channels(image, channels : int):
     # ensure channel axis
@@ -61,27 +81,15 @@ def ensure_channels(image, channels : int):
     return image
 
 
-@partial(jax.jit, static_argnums=1)
-def crop_resize(image, resolution):
-    '''Resize and crop image to fill a square'''
-    width, height = image.shape[:2]
-    if width == resolution and height == resolution:
-        return image
-    # left, top, right, bottom
-    if width != height:
-        crop = jnp.minimum(width, height)
-        left = (width - crop) // 2
-        top = (height - crop) // 2
-        image = jax.lax.dynamic_slice(image, (top, left, 0), (crop, crop, image.shape[-1]))
-    return jax.image.resize(image, (resolution, resolution, image.shape[-1]), 'bicubic')
+def normalize_images(images, channels, resolution, pad, dtype):
+    resized_size = resolution - 2 * pad
 
-
-@partial(jax.jit, static_argnums=(1, 2, 3))
-def normalize_images(images, channels, resolution, pad):
     output = []
     for im in images:
+        resized = crop_resize(im, resized_size)
+        im = jnp.asarray(resized, dtype=dtype)
+        resized.close()
         im = ensure_channels(im, channels)
-        im = crop_resize(im, resolution - 2 * pad)
         output += [im]
 
     stack = jnp.stack(output)

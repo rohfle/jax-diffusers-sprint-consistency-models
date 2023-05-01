@@ -26,13 +26,12 @@ class JAXImageTransform:
         # make sure the result is always divisible by split_into
         # even if it means dropping images
         max_idx = len(batch['image']) // self.split_into * self.split_into
-        images = [jnp.asarray(im, dtype=jnp.bfloat16) for im in batch['image'][:max_idx]]
-
         images = imagetools.normalize_images(
-            images,
+            batch['image'][:max_idx],
             self.image_channels,
             self.image_size,
             self.image_pad,
+            dtype=jnp.bfloat16,
         )
 
         # reshape in a way that supports pmap
