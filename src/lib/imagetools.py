@@ -53,9 +53,11 @@ def ensure_channels(image, channels : int):
         # handle grayscale to rgb
         image = image.repeat(channels, axis=2)
     if shape[2] == 4 and channels == 3:
-        image = image[:, :, :channels]  # drop the alpha
+        # drop the alpha
+        image = image[:, :, :channels]
     if shape[2] == 3 and channels == 4:
-        image = jnp.concatenate((image, jnp.full((*shape[:2], 1), 255)), axis=2) # add an alpha channel
+         # add an alpha channel
+        image = jnp.concatenate((image, jnp.full((*shape[:2], 1), 255)), axis=2, dtype=image.dtype)
     return image
 
 

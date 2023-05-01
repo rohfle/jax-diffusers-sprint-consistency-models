@@ -121,8 +121,6 @@ def train(config: ml_collections.ConfigDict,
     local_device_count = jax.local_device_count()
     rng = jax.random.PRNGKey(config.seed)
     rng, d_rng = jax.random.split(rng)
-    # load dataset
-    ds_train, ds_valid = get_dataset(d_rng, config, split_into=local_device_count)
     rng, state_rng = jax.random.split(rng)
     # create initial train state
     state = create_train_state(state_rng, config)
@@ -140,8 +138,9 @@ def train(config: ml_collections.ConfigDict,
         pbar = tqdm(ds_train)
         for batch in pbar:
             step += 1
-            if step < step_offset:
-                continue
+            if batch['image'] is None:
+                print("skipping batch for step", step, "...")
+                continue  # skipping steps until at step offset
             step_start_time = time.time()
             pbar.set_description('Training...')
             state = consistency.update_N(state, epoch, config.training.num_epochs)

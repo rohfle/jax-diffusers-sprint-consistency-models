@@ -19,9 +19,9 @@ class JAXImageTransform:
 
     def __call__(self, batch):
         if self.skip_batches > 0:
-            # gonna skip this batch, dont bother processing it
+            # gonna skip this batch anyway, dont bother processing it
             self.skip_batches -= 1
-            return batch
+            return {k: [None] for k in batch.keys()}  # empty batch
 
         # make sure the result is always divisible by split_into
         # even if it means dropping images
@@ -57,6 +57,7 @@ def get_dataset(rng, config : ml_collections.ConfigDict, split_into=1, skip_batc
         buffer_size=config.data.shuffle_buffer_size
     ).with_format('jax')
 
+    # TODO: there is a skip() function? how would this work with multiple epochs
     image_transform = JAXImageTransform(config, skip_batches=skip_batches, split_into=split_into)
     ds_train = dataset['train'].map(image_transform, batched=True, batch_size=config.data.batch_size, drop_last_batch=True)
     if 'test' in dataset:
