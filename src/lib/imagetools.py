@@ -72,9 +72,7 @@ def crop_resize(image, resolution):
         crop = jnp.minimum(width, height)
         left = (width - crop) // 2
         top = (height - crop) // 2
-        right = (width + crop) // 2
-        bottom = (height + crop) // 2
-        image = image[top:bottom, left:right, :]
+        image = jax.lax.dynamic_slice(image, (top, left, 0), (height, width, image.shape[-1]))
     return jax.image.resize(image, (resolution, resolution, image.shape[-1]), 'bicubic')
 
 
