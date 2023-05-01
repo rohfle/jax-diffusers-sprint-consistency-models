@@ -1,3 +1,4 @@
+from functools import partial
 import logging
 import os
 import time
@@ -9,6 +10,7 @@ from tqdm import tqdm
 from flax import jax_utils
 from clu import metric_writers
 from clu import periodic_actions
+from diffusers.models import FlaxUNet2DConditionModel
 
 from lib import checkpoints
 from lib import monitoring
@@ -21,16 +23,32 @@ from lib.ema import update_ema_params
 from lib.optimizers import create_optimizer
 
 
-def create_model(*, model_cls, half_precision, **kwargs):
+def determine_dtype(half_precision):
     if half_precision:
         platform = jax.local_devices()[0].platform
         if platform == 'tpu':
-            model_dtype = jnp.bfloat16
+            return jnp.bfloat16
         else:
-            model_dtype = jnp.float16
+            return jnp.float16
     else:
-        model_dtype = jnp.float32
+        return jnp.float32
+
+
+def create_model(*, model_cls, half_precision, **kwargs):
+    model_dtype = determine_dtype(half_precision)
     return model_cls(dtype=model_dtype, **kwargs)
+
+
+def load_teacher_model(rng, model_path, half_precision, hidden_states_shape=(4, 77, 768), **kwargs):
+    model_dtype = determine_dtype(half_precision)
+    model, params = FlaxUNet2DConditionModel.from_pretrained(
+        model_path,
+        dtype=model_dtype,
+        **kwargs
+    )
+    # TODO: why is the default hidden states shape the way it is?
+    hidden_states = jax.random.normal(rng, hidden_states_shape, dtype=model_dtype)
+    return model, params, hidden_states
 
 
 def init_model(key, image_size, image_channels, model):
@@ -60,19 +78,33 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
     loss_fn = get_loss_function(config.training.loss_type)
     apply_fn = consistency.model(model.apply, config.training.epsilon)
 
+    if config.training.get('mode') == 'distill':
+        teacher_model, teacher_params, hidden_states = load_teacher_model(
+            config.training.teacher_model,
+            half_precision=config.training.half_precision)
+        # hide the hidden states
+        teacher_model_apply_fn = partial(teacher_model.apply, encoder_hidden_states=hidden_states)
+        consistency_fn = consistency.distillation
+    else:
+        teacher_model_apply_fn = None
+        teacher_params = None
+        consistency_fn = consistency.training
+
     state = TrainState.create(
+        teacher_apply_fn=teacher_model_apply_fn,
+        teacher_params=teacher_params,
+        consistency_fn=consistency_fn,
         apply_fn=apply_fn,
         params=params,
         tx=tx,
         loss_fn=loss_fn,
         ema_params=ema_params,
-        N=config.training.N,)
+        N=config.training.N)
     return state
 
 
 def train_step(rng, state, batch, pmap_axis='batch'):
-    x0 = batch
-    batch_t_ema, batch_t = consistency.consistency_training(rng, x0, state.N, state.N_ramp)
+    batch_t_ema, batch_t = state.consistency_fn(rng, batch, state)
     preds_ema = state.apply_fn({'params': state.ema_params}, batch_t_ema[0], batch_t_ema[1])
 
     def compute_loss(params):
@@ -147,7 +179,7 @@ def train(config: ml_collections.ConfigDict,
             rng, *train_step_rng = jax.random.split(rng, num=local_device_count + 1)
             train_step_rng = jnp.asarray(train_step_rng)
             state, metrics = p_train_step(train_step_rng, state, batch['image'])
-            # TODO: profile
+
             if step == step_offset:
                 logging.info('Initial compilation completed.')
                 logging.info(f"Number of devices: {batch['image'].shape[0]}")
