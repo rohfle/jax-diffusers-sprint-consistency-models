@@ -45,7 +45,6 @@ def load_teacher_model(rng, model_path, half_precision, hidden_states_shape=(4, 
         model_path,
         subfolder="unet",
         dtype=model_dtype,
-        revision="bf16" if half_precision else None,
         **kwargs
     )
     # TODO: why is the default hidden states shape the way it is?
