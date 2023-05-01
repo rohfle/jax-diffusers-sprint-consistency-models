@@ -20,6 +20,7 @@ def get_config():
   config.training = training = ml_collections.ConfigDict()
   training.mode = 'distill'
   training.teacher_model = 'valhalla/sd-pokemon-model'
+  training.teacher_rearrange = 'b w h c -> b c w h'
   training.num_epochs = 700000
   training.loss_type = 'mse'
   training.half_precision = True
@@ -45,8 +46,8 @@ def get_config():
   data.dataset ='lambdalabs/pokemon-blip-captions'
   data.batch_size = 64 * 4
   data.cache = False
-  data.image_size = 128
-  data.channels = 3
+  data.image_size = 96
+  data.channels = 4
   data.shuffle_buffer_size = 10000
   data.use_streaming = True
 

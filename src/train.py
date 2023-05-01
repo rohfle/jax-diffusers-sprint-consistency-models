@@ -4,6 +4,7 @@ import os
 import time
 from copy import deepcopy
 import jax
+import einops
 import jax.numpy as jnp
 import ml_collections
 from tqdm import tqdm
@@ -86,8 +87,17 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
             rng_teach,
             config.training.teacher_model,
             half_precision=config.training.half_precision)
-        # hide the hidden states
-        teacher_model_apply_fn = partial(teacher_model.apply, encoder_hidden_states=hidden_states)
+        # hide the hidden states and also allow reorder of dimensions
+        rearrange_op = config.training.get('teacher_rearrange', 'a b c d -> a b c d')
+        ops = rearrange_op.split(' -> ')
+        ops.reverse()
+        reverse_op = ' -> '.join(ops)
+        reorder = lambda x: einops.rearrange(rearrange_op)
+        reorder_reverse = lambda x: einops.rearrange(reverse_op)
+
+        def teacher_model_apply_fn(params, x, t):
+            output = teacher_model.apply(params, reorder(x), t, encoder_hidden_states=hidden_states)
+            return reorder_reverse(output)
         consistency_fn = consistency.distillation
     else:
         teacher_model_apply_fn = None
