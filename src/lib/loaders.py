@@ -39,9 +39,9 @@ class JAXImageTransform:
             'image': images.reshape((1, self.split_into, -1) + images.shape[1:])
         }
 
-        if 'label' in batch:
-            labels = jnp.array(batch['label'][:max_idx])
-            result['label'] = labels.reshape((1, self.split_into, -1) + labels.shape[1:])
+        # if 'label' in batch:
+        #     labels = jnp.array(batch['label'][:max_idx])
+        #     result['label'] = labels.reshape((1, self.split_into, -1) + labels.shape[1:])
 
         return result
 
