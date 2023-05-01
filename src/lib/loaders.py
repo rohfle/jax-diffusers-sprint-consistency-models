@@ -43,6 +43,11 @@ class JAXImageTransform:
         #     labels = jnp.array(batch['label'][:max_idx])
         #     result['label'] = labels.reshape((1, self.split_into, -1) + labels.shape[1:])
 
+        for key in batch.keys():
+            if key == 'image':
+                continue
+            result[key] = [batch[key]]
+
         return result
 
 
