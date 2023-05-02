@@ -87,13 +87,19 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
             rng_teach,
             config.training.teacher_model,
             # TODO: move to config
-            hidden_states_shape=(64, 77, 1024),
+            hidden_states_shape=(4, 77, 1024),
             half_precision=config.training.half_precision)
         # hide the hidden states and also allow reorder of dimensions
         def teacher_model_apply_fn(params, x_t, t):
             # TODO: move rearrange to config
             x_t = einops.rearrange(x_t, 'b h w c -> b c h w')
-            x = teacher_model.apply(params, x_t, t, encoder_hidden_states=hidden_states).sample
+            results = []
+            MINIBATCH_SIZE = 4  # smaller model
+            for idx in range(0, len(x_t), MINIBATCH_SIZE):
+                x_t_mini = x_t[idx:idx + MINIBATCH_SIZE]
+                x_mini = teacher_model.apply(params, x_t_mini, t, encoder_hidden_states=hidden_states).sample
+                results += [x_mini]
+            x = jnp.concatenate(results)
             return einops.rearrange(x, 'b c h w -> b h w c')
         consistency_fn = consistency.distillation
     else:
