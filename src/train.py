@@ -86,6 +86,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
         teacher_model, teacher_params, hidden_states = load_teacher_model(
             rng_teach,
             config.training.teacher_model,
+            hidden_states_shape=(4, 77, 1024),
             half_precision=config.training.half_precision)
         # hide the hidden states and also allow reorder of dimensions
         def teacher_model_apply_fn(params, x_t, t):
