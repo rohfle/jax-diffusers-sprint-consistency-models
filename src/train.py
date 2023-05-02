@@ -92,8 +92,8 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
         ops = rearrange_op.split(' -> ')
         ops.reverse()
         reverse_op = ' -> '.join(ops)
-        reorder = lambda x: einops.rearrange(rearrange_op)
-        reorder_reverse = lambda x: einops.rearrange(reverse_op)
+        reorder = lambda x: einops.rearrange(x. rearrange_op)
+        reorder_reverse = lambda x: einops.rearrange(x, reverse_op)
 
         def teacher_model_apply_fn(params, x, t):
             output = teacher_model.apply(params, reorder(x), t, encoder_hidden_states=hidden_states)
