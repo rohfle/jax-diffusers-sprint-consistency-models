@@ -97,7 +97,8 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
             MINIBATCH_SIZE = 4  # smaller model
             for idx in range(0, len(x_t), MINIBATCH_SIZE):
                 x_t_mini = x_t[idx:idx + MINIBATCH_SIZE]
-                x_mini = teacher_model.apply(params, x_t_mini, t, encoder_hidden_states=hidden_states).sample
+                t_mini = t[idx:idx + MINIBATCH_SIZE]
+                x_mini = teacher_model.apply(params, x_t_mini, t_mini, encoder_hidden_states=hidden_states).sample
                 results += [x_mini]
             x = jnp.concatenate(results)
             return einops.rearrange(x, 'b c h w -> b h w c')
