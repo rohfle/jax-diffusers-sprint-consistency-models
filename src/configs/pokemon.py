@@ -11,9 +11,9 @@ def get_config():
   wandb.project = "hfjs-consistency-pokemon"
   wandb.job_type = "training"
   wandb.name = None
-  wandb.log_train = False
-  wandb.log_sample = False
-  wandb.log_model = False
+  wandb.log_train = True
+  wandb.log_sample = True
+  wandb.log_model = True
 
 
   # training
