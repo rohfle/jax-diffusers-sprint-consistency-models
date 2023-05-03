@@ -87,7 +87,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
             rng_teach,
             config.training.teacher_model,
             # TODO: move to config
-            hidden_states_shape=(4, 77, 1024),
+            hidden_states_shape=(4, 77, 1024),  # 4 outputs, 77 ??, 1024 inputs to encoder???
             half_precision=config.training.half_precision)
         # hide the hidden states and also allow reorder of dimensions
         def teacher_model_apply_fn(params, x_t, t):

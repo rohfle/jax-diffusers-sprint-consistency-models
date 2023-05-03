@@ -7,6 +7,7 @@ from datasets import load_dataset
 
 from . import imagetools
 
+# TODO: rewrite this to improve performance
 
 class JAXImageTransform:
     """Adds batch skipping to map functions"""
