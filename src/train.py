@@ -48,7 +48,6 @@ def load_teacher_model(rng, model_path, half_precision, hidden_states_shape=(4, 
         revision="bf16" if half_precision else None,
         **kwargs
     )
-    # TODO: why is the default hidden states shape the way it is?
     hidden_states = jax.random.normal(rng, hidden_states_shape, dtype=model_dtype)
     return model, params, hidden_states
 
@@ -72,6 +71,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
         sample_size=config.data.image_size,
         in_channels=config.data.channels,
         out_channels=config.data.channels,
+        use_memory_efficient_attention=True,
         # from stable-diffusion-2
         attention_head_dim=(
             5,
@@ -98,6 +98,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
             rng_teach,
             config.training.teacher_model,
             # TODO: move to config
+            use_memory_efficient_attention=True,
             hidden_states_shape=(4, 1, 1024),  # batch size, seq length, embedding dim
             half_precision=config.training.half_precision)
         # hide the hidden states and also allow reorder of dimensions
@@ -178,8 +179,7 @@ def train(config: ml_collections.ConfigDict,
     # setup random number generator
     local_device_count = jax.local_device_count()
     rng = jax.random.PRNGKey(config.seed)
-    rng, d_rng = jax.random.split(rng)
-    rng, state_rng = jax.random.split(rng)
+    rng, d_rng, state_rng = jax.random.split(rng, num=3)
     # create initial train state
     state = create_train_state(state_rng, config)
     state = checkpoints.restore(state, workdir)
