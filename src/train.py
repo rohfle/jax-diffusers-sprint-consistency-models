@@ -72,13 +72,20 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
         sample_size=config.data.image_size,
         in_channels=config.data.channels,
         out_channels=config.data.channels,
+        # from stable-diffusion-2
+        attention_head_dim=(
+            5,
+            10,
+            20,
+            20,
+        ),
     )
 
     rng, rng_params, rng_hidden = jax.random.split(rng, num=3)
     params = model.init_weights(rng_params)
     encoder_hidden_states_shape = (config.data.batch_size // 4, 1, model.cross_attention_dim)
     encoder_hidden_states = jax.random.normal(rng_hidden, encoder_hidden_states_shape, dtype=model.dtype)
-    apply_fn = lambda params, x_t, t: model.apply(params, x_t, t, encoder_hidden_states)
+    apply_fn = lambda params, x_t, t: model.apply(params, x_t, t, encoder_hidden_states).sample
 
     apply_fn = consistency.model(apply_fn, config.training.epsilon)
     ema_params = deepcopy(params)  # probably not necessary
@@ -95,8 +102,6 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
             half_precision=config.training.half_precision)
         # hide the hidden states and also allow reorder of dimensions
         def teacher_model_apply_fn(params, x_t, t):
-            # TODO: move rearrange to config
-            x_t = einops.rearrange(x_t, 'b h w c -> b c h w')
             results = []
             MINIBATCH_SIZE = 4  # smaller model
             for idx in range(0, len(x_t), MINIBATCH_SIZE):
@@ -104,8 +109,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
                 t_mini = t[idx:idx + MINIBATCH_SIZE]
                 x_mini = teacher_model.apply(params, x_t_mini, t_mini, encoder_hidden_states=hidden_states).sample
                 results += [x_mini]
-            x = jnp.concatenate(results)
-            return einops.rearrange(x, 'b c h w -> b h w c')
+            return jnp.concatenate(results)
         consistency_fn = consistency.distillation
     else:
         teacher_model_apply_fn = None
