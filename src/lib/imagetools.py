@@ -89,10 +89,11 @@ def normalize_images(images, channels, resolution, pad, dtype):
         resized = crop_resize(im, resized_size)
         im = jnp.asarray(resized, dtype=dtype)
         resized.close()
-        im = ensure_channels(im, channels)
+        im = ensure_channels(im, channels)  # h x w x c
         output += [im]
 
     stack = jnp.stack(output)
     stack = jnp.pad(stack, [(0,0), (pad,pad), (pad,pad), (0,0)])
     stack = stack * 2 / 255 - 1
-    return stack
+    # returns batch, channel, height, width
+    return jnp.transpose(stack, (0, 3, 1, 2))
