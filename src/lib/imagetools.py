@@ -82,7 +82,7 @@ def ensure_channels(image, channels : int):
 
 
 def normalize_images(images, channels, resolution, pad, dtype):
-    resized_size = resolution - 2 * pad
+    resized_size = resolution - 2 * pad  # is the pad used to make the image dimension a power of 2?
 
     output = []
     for im in images:
