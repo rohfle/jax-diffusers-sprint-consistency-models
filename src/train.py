@@ -66,19 +66,23 @@ def init_model(key, image_size, image_channels, model):
 
 
 def create_train_state(rng, config: ml_collections.ConfigDict):
-    model = create_model(
-        model_cls=Unet,
-        half_precision=config.training.half_precision,
-        dim=config.model.dim,
-        out_dim=config.data.channels,
-        dim_mults=config.model.dim_mults)
+    model_dtype = determine_dtype(config.training.half_precision)
+    model = FlaxUNet2DConditionModel(
+        dtype=model_dtype,
+        sample_size=config.data.image_size,
+        in_channels=config.data.channels,
+        out_channels=config.data.channels,
+    )
 
-    rng, rng_params = jax.random.split(rng)
-    params = init_model(rng_params, config.data.image_size, config.data.channels, model)
+    rng, rng_params, rng_hidden = jax.random.split(rng, num=3)
+    params = model.init_weights(rng_params)
+    encoder_hidden_states = jnp.random.normal(rng_hidden, (1, 1, model.cross_attention_dim), dtype=model.dtype)
+    apply_fn = lambda params, x_t, t: model.apply(params, x_t, t, encoder_hidden_states)
+
+    apply_fn = consistency.model(apply_fn, config.training.epsilon)
     ema_params = deepcopy(params)  # probably not necessary
     tx = create_optimizer(config.optim)
     loss_fn = get_loss_function(config.training.loss_type)
-    apply_fn = consistency.model(model.apply, config.training.epsilon)
 
     if config.training.get('mode') == 'distill':
         rng, rng_teach = jax.random.split(rng)
