@@ -1,4 +1,3 @@
-from functools import partial
 import logging
 import os
 import time
@@ -59,7 +58,7 @@ def init_model(key, image_size, image_channels, model):
     init = jax.jit(model.init)
     variables = init(
             {'params': key},
-            jnp.ones(input_shape, model.dtype), # x noisy image
+            jnp.ones(input_shape, model.dtype), # x_t
             jnp.ones(input_shape[:1], model.dtype) # t
         )
 
@@ -87,7 +86,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
             rng_teach,
             config.training.teacher_model,
             # TODO: move to config
-            hidden_states_shape=(4, 77, 1024),  # 4 outputs, 77 ??, 1024 inputs to encoder???
+            hidden_states_shape=(4, 77, 1024),  # 4 batch size, 77 seq length, 1024 embedding dim
             half_precision=config.training.half_precision)
         # hide the hidden states and also allow reorder of dimensions
         def teacher_model_apply_fn(params, x_t, t):
