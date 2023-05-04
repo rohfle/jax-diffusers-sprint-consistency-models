@@ -76,7 +76,7 @@ def create_train_state(rng, config: ml_collections.ConfigDict):
 
     rng, rng_params, rng_hidden = jax.random.split(rng, num=3)
     params = model.init_weights(rng_params)
-    encoder_hidden_states = jnp.random.normal(rng_hidden, (1, 1, model.cross_attention_dim), dtype=model.dtype)
+    encoder_hidden_states = jax.random.normal(rng_hidden, (1, 1, model.cross_attention_dim), dtype=model.dtype)
     apply_fn = lambda params, x_t, t: model.apply(params, x_t, t, encoder_hidden_states)
 
     apply_fn = consistency.model(apply_fn, config.training.epsilon)
